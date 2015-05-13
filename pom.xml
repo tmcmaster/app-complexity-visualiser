@@ -1,0 +1,31 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>complexity-visualiser</artifactId>
+    <packaging>jar</packaging>
+    <version>1.0-SNAPSHOT</version>
+
+    <description>
+        Visualises the complexity of Java applications.
+    </description>
+
+    <name>complexity Visualiser</name>
+    <url>https://bitbucket.org/tmcmaster/app-complexity-visualiser</url>
+
+    <parent>
+        <groupId>au.id.mcmaster.apps</groupId>
+        <artifactId>all-apps</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../all-apps/pom.xml</relativePath>
+    </parent>
+    
+  <dependencies>
+      <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.8.2</version>
+          <scope>test</scope>
+      </dependency>
+  </dependencies>
+</project>
