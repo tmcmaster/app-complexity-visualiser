@@ -29,7 +29,7 @@ chomp($moduleDir);
 chomp($moduleName);
 
 my $dir;
-printf("module,%s\n", $moduleName);
+printf("module,name,%s\n", $moduleName);
 my $sourceDir = $moduleDir . '/src/main/java';
 my @packageDirectories = `cd $sourceDir; find -type d -printf "%P\n"`;
 
@@ -39,8 +39,9 @@ for $dir (@packageDirectories)
 	my $dirPath = sprintf("%s/%s/%s",$moduleDir,"src/main/java", $dir);
 	my $children = `cd $dirPath; ls *.java 2>/dev/null |wc -l`;
 	chomp($children);
+	$dir =~ tr/\//\./;
 	if ($children > 0)
 	{
-		printf("package,%s\n",$dir);	
+		printf("package,name,%s\n",$dir);	
 	}
 }
