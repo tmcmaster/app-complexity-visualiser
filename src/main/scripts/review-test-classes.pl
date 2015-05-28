@@ -25,12 +25,13 @@ for $line (`./module-classes.pl --test-classes $ARGV[0]`)
 		my @parts = split(',', $line);
 		my ($testClass,$testPackage) = @parts[2,4];
 		$testClass =~ m/(.*)(Test|IntegrationTest)/;
-		my $class = $2;
-		#printf("class: %s, package: %s, name: %s\n", $testClass, $testPackage, $class);
+		my $class = $1;
+		printf("class: %s, package: %s, name: %s\n", $testClass, $testPackage, $class);
 		if (defined $classMap{$class})
 		{
 			my $package = $classMap{$class};
-			my $expectedPackage = $package . ".test";
+			my $expectedPackage = $package;
+			#my $expectedPackage = $package . ".test";
 			if ($expectedPackage ne $testPackage)
 			{
 				printf("%s,%s,%s\n", $testClass, $testPackage, $expectedPackage);
