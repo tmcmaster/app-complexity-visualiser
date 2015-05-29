@@ -1,0 +1,31 @@
+commit adc9c93df06fb0355478dab52cecae31e5a395ef
+Author: JoernT <joern.turner@betterform.de>
+Date:   Thu Feb 2 11:09:18 2012 +0100
+
+    updated copyright
+
+commit 2a63dbeacc924b24286f07d3d54499861f5acec8
+Author: Lars Windauer <lars.windauer@betterform.de>
+Date:   Tue Sep 6 16:50:07 2011 +0200
+
+    [core] updated copyright information using Intellij Copyright functionality
+
+commit 6911bd535983d16903c264bbceeb1b3d34ab2c67
+Author: JoernT <joern.turner@googlemail.com>
+Date:   Wed Jan 13 16:22:32 2010 +0000
+
+    updated copyright notice
+
+commit 7128c011273ed182731c301af507a8008f9a9daf
+Author: JoernT <joern.turner@googlemail.com>
+Date:   Wed Jan 13 16:14:47 2010 +0000
+
+    -removed deprecated copyright notice
+    -moved license files
+
+commit e640be3475ce00517ca5a1a09d9fa22ddc7ae8f7
+Author: windauer <lars.windauer@betterform.de>
+Date:   Tue Jan 12 15:04:48 2010 +0000
+
+    initial version
+
