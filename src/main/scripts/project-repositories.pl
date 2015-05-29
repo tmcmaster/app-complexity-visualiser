@@ -22,14 +22,17 @@ unless (-d $dir)
 	die "Given directory was invalid: $dir";
 }
 
-my @pomFiles = (`find $dir -name pom.xml |egrep -v '\/build\/|\/target\/|\/.metadata\/'`);
+my @hgdirs = (`find $dir -name .hg`);
 
-printf("project,name:%s\n",$dir);
+my $project = `basename $dir`;
+chomp($project);
+
+printf("Project,name:%s,path,%s\n",$project,$dir);
 my $line;
-for $line (@pomFiles)
+for $line (@hgdirs)
 {
 	chomp($line);
-	$line =~ qr/$dir\/(.*)\/pom.xml/;
+	$line =~ qr/$dir\/(.*)\/.hg/;
 	my $projectPath = $1;
 	my $path = '';
 	my $module = $projectPath;
@@ -37,5 +40,5 @@ for $line (@pomFiles)
 	{
 		($path,$module) = $projectPath =~ m/(.*)\/(.*)/;
 	}
-	printf("module,name,%s,path,%s\n",$module,$path);
+	printf("Repository,name,%s,path,%s\n",$module,$path);
 }
