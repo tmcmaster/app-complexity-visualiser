@@ -29,7 +29,7 @@ chomp($moduleDir);
 chomp($moduleName);
 
 my $dir;
-printf("module,name,%s\n", $moduleName);
+printf("Module,name,%s,edge,CONTAINS\n", $moduleName);
 my $sourceDir = $moduleDir . '/src/main/java';
 my @packageDirectories = `cd $sourceDir; find -type d -printf "%P\n"`;
 
@@ -42,6 +42,6 @@ for $dir (@packageDirectories)
 	$dir =~ tr/\//\./;
 	if ($children > 0)
 	{
-		printf("package,name,%s\n",$dir);	
+		printf("Package,name,%s\n",$dir);	
 	}
 }
