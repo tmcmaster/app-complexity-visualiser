@@ -2,43 +2,19 @@
 
 use strict;
 
-my $dir;
-if ($#ARGV eq -1)
-{
-	$dir = `pwd`;
-}
-else
-{
-	$dir = $ARGV[0];
-}
+use lib './lib';
 
-if ($dir =~ m/\/$/)
+use Complexity::Path;
+
+my ($dir) = getDirectoryPlusArgs(@ARGV);
+my $project = getNameForPath($dir);
+
+printf("Project,name:%s,path,%s\n", $project, $dir);
+for my $path (`find $dir -name '.git' -o -name '.hg'`)
 {
-	chop($dir);
-}
+	chomp($path);
 
-unless (-d $dir)
-{
-	die "Given directory was invalid: $dir";
-}
-
-my @hgdirs = (`find $dir -name .hg`);
-
-my $project = `basename $dir`;
-chomp($project);
-
-printf("Project,name:%s,path,%s\n",$project,$dir);
-my $line;
-for $line (@hgdirs)
-{
-	chomp($line);
-	$line =~ qr/$dir\/(.*)\/.hg/;
-	my $projectPath = $1;
-	my $path = '';
-	my $module = $projectPath;
-	if ($projectPath =~ m/\//)
-	{
-		($path,$module) = $projectPath =~ m/(.*)\/(.*)/;
-	}
-	printf("Repository,name,%s,path,%s\n",$module,$path);
+	my ($baseDir, $relativePathDir, $name, $file) = splitPath($dir, $path);
+	my $type = ($file eq ".hg" ? "Mercurial" : ($file eq ".git" ? "Git" : ""));
+	printf("Repository,name,%s,type,%s,path,%s\n", $name, $type, $relativePathDir);
 }

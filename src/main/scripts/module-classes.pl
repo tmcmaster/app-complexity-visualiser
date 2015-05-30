@@ -26,11 +26,6 @@ if ($#ARGV > -1)
 	}
 }
 
-unless (-d $dir)
-{
-	die "Given directory was invalid: $dir";
-}
-
 my @pomFiles = `find $dir -name pom.xml`;
 if ($#pomFiles+1 eq 0)
 {
