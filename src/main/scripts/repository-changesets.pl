@@ -1,64 +1,81 @@
 #!/usr/bin/perl
 
 use strict;
+use lib './lib';
 
-my $dir;
-my $mode = "main";
+use Complexity::Util;
+use Complexity::Path;
 
-if ($#ARGV > -1)
+my ($dir) = getDirectoryPlusArgs(@ARGV);
+my $repository = getNameForPath($dir);
+
+printf("Repository,name,%s,path,%s,edge,CONTAINS\n", $repository, $dir);
+
+if (-d "$dir/.hg")
 {
-    $dir = $ARGV[0];
+    printChangesetsHg($dir);
+}
+elsif (-d "$dir/.git")
+{
+    printChangesetsGit($dir);
 }
 else
 {
-    $dir = `pwd`;
+    die "Could not find repository: $dir";
 }
 
-unless (-d $dir)
+sub printChangesetsHg
 {
-	die "Given directory was invalid: $dir";
-}
+    my ($dir) = @_;
 
-my $project = `basename $dir`;
-chomp($project);
-
-my %developerMap = ();
-
-print "Repository,name,$project,path,$dir,edge,CONTAINS\n";
-for my $changeset (`(cd $dir; hg log --template "{date|shortdate}|{node|short}|{branch}|{author}\n")`)
-{
-    chomp($changeset);
-
-    my ($date,$changesetId,$branch,$developer) = split('\|',$changeset);
-
-    my $developerString = standardiseDeveloper($developer);
-    printf("Changeset,name,%s,date,%s,branch,%s,developer,%s\n", $changesetId, $date, $branch, $developerString);
-}
-
-sub standardiseDeveloper
-{
-    my ($user) = @_;
-
-    my @parts = ($user =~ m/.*&.*/ ? split('&', $user)
-                    : ($user =~ m/.*,.*/ ? split(',',$user)
-                    : ($user =~ m/ and / ? split(' and ', $user) : $user)));
-    my @developers = ();
-    for my $developer (@parts)
+    for my $changeset (`(cd $dir; hg log --template "{date|shortdate}|{node|short}|{branch}|{author}\n")`)
     {
-        
-        if ($developer =~ m/</)
-        {
-            $developer = (split('<', $developer))[0]; 
-        }
-        $developer =~ s/^\s+//;
-        $developer =~ s/\s+$//;
-        $developer = lc $developer;
-        $developer =~ tr/\./ /;
-        $developer =~ s/(\w+)/\u$1/g;
-        push(@developers, $developer);
+        chomp($changeset);
+
+        my ($date,$changesetId,$branch,$developer) = split('\|',$changeset);
+
+        my $developerString = parseDeveloperName($developer);
+        printf("Changeset,name,%s,date,%s,branch,%s,developer,%s\n", $changesetId, $date, $branch, $developerString);
     }
+}
 
-    my $developerString = join(' & ', @developers);
+sub printChangesetsGit
+{
+    my ($dir) = @_;
 
-    return $developerString;
+    my $changeset;
+    my $developer;
+    my $date;
+    my $files;
+    my $inserts;
+    my $deletes;
+    my $branch;
+    my $commiter;
+    for my $line (`cd $dir; git log --date=short --shortstat --oneline --format="%H | %an | %ad | %cn | %d |" |head`)
+    {
+        chomp($line);
+        unless ($line =~ m/^$/)
+        {
+            if ($line =~ m/^\s+/)
+            {
+                ($files,$inserts,$deletes) = $line =~ m/\s+([0-9]*?) file changed, ([0-9]*?) insertions\(\+\), ([0-9]*?) deletions\(\-\)/;
+            }
+            else
+            {
+                printRecord($changeset,$date,$files,$inserts,$deletes,$developer,$branch);
+                ($changeset,$developer,$date,$commiter,$branch) = $line =~ m/(.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \|/;
+            }
+        }
+    }
+    printRecord($changeset,$date,$files,$inserts,$deletes,$developer,$branch);
+}
+
+sub printRecord
+{
+    my ($changeset,$date,$files,$inserts,$deletes,$developer,$branch) = @_;
+
+    if (defined $changeset)
+    {
+        printf("Changeset,name,%s,date,%s,files,%d,inserts,%d,deletes,%d,developer,%s,branch,%s\n", $changeset,$date,$files,$inserts,$deletes,$developer,$branch)
+    }
 }

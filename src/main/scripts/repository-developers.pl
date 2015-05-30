@@ -2,34 +2,37 @@
 
 use strict;
 
-my $dir;
-my $mode = "main";
+use lib './lib';
 
-if ($#ARGV > -1)
+use Complexity::Util;
+use Complexity::Path;
+
+my ($dir) = getDirectoryPlusArgs(@ARGV);
+my $project = getNameForPath($dir);
+
+my $command;
+
+if (-d "$dir/.hg")
 {
-    $dir = $ARGV[0];
+    $command = 'hg log --template "{author}\n" |iconv -t utf-8 -c |sort |uniq';
+}
+elsif (-d "$dir/.git")
+{
+    $command = 'git log --oneline  --format="%an" |iconv -t utf-8 -c |sort |uniq';
 }
 else
 {
-    $dir = `pwd`;
+    die "Could not find repository: $dir";
 }
-
-unless (-d $dir)
-{
-	die "Given directory was invalid: $dir";
-}
-
-my $project = `basename $dir`;
-chomp($project);
 
 my %developerMap = ();
 
-print "Project,name,$project,path,$dir\n";
-for my $developer (`(cd $dir; hg log --template "{author}\n" |sort |uniq)`)
+print "Repository,name,$project,path,$dir\n";
+for my $developer (`(cd $dir; $command)`)
 {
     chomp($developer);
 
-    my $developerString = standardiseDeveloper($developer);
+    my $developerString = parseDeveloperName($developer);
     unless ($developerMap{$developerString})
     {
         $developerMap{$developerString} = 1;
@@ -37,30 +40,3 @@ for my $developer (`(cd $dir; hg log --template "{author}\n" |sort |uniq)`)
     }
 }
 
-sub standardiseDeveloper
-{
-    my ($user) = @_;
-
-    my @parts = ($user =~ m/.*&.*/ ? split('&', $user)
-                    : ($user =~ m/.*,.*/ ? split(',',$user)
-                    : ($user =~ m/ and / ? split(' and ', $user) : $user)));
-    my @developers = ();
-    for my $developer (@parts)
-    {
-        
-        if ($developer =~ m/</)
-        {
-            $developer = (split('<', $developer))[0]; 
-        }
-        $developer =~ s/^\s+//;
-        $developer =~ s/\s+$//;
-        $developer = lc $developer;
-        $developer =~ tr/\./ /;
-        $developer =~ s/(\w+)/\u$1/g;
-        push(@developers, $developer);
-    }
-
-    my $developerString = join(' & ', @developers);
-
-    return $developerString;
-}
