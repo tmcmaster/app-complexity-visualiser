@@ -14,59 +14,170 @@
 
 use strict;
 
-my $dir;
-my $changeset;
+use lib './lib';
+use Complexity::Util;
+use Complexity::Path;
 
-if ($#ARGV > -1)
-{
-	$dir = $ARGV[0];
-	if ($#ARGV > 0)
-	{
-		$changeset = $ARGV[1];
-	}
-}
-else
-{
-	$dir = `pwd`;
-	chomp($dir);
-	if ($#ARGV > -1)
-	{
-		$changeset = $ARGV[0];
-	}
-}
 
-unless (-d $dir)
-{
-	die "Given directory was invalid: $dir";
-}
+#########################################################################################################
+#
+#  Options Section
+#
+
+
+my ($dir, $changeset) = getDirectoryPlusArgs(@ARGV);
+my $repository = getNameForPath($dir);
 
 unless (defined $changeset)
 {
 	die "Changeset is required.";
 }
 
-my %fileStatsMap = ();
-for my $line (`cd $dir; git log --name-status --format=""  -1 $changeset`)
-{
-	chomp($line);
-	my ($action, $file) = $line =~ m/([MAR])\s+(.*)/;
-	my %fileStats = ('action' => $action);
-	$fileStatsMap{$file} = \%fileStats;
-}
 
-for my $line (`cd $dir; git log --numstat --format=""  -1 $changeset`)
-{
-	chomp($line);
-	my ($inserts, $deletes, $file) = $line =~ m/([0-9]*)\s+([0-9]*)\s+(.*)/;
-	my $stats = $fileStatsMap{$file};
-	$stats->{'inserts'} = $inserts;
-	$stats->{'deletes'} = $deletes;
-}
+#########################################################################################################
+#
+#  Main Section
+#
+
+
+my %fileStatsMap = getFileStats($dir, $changeset);
 
 printf("Changeset,name,%s\n", $changeset);
 for my $file (keys %fileStatsMap)
 {
 	my $stats = $fileStatsMap{$file};
-	my ($path,$name) = $file =~ m/(.*)\/(.*)/;
-	printf("File,name,%s,path,%s,action,%s,inserts,%s,deletes,%s\n", $name, $path, $stats->{'action'}, $stats->{'inserts'}, $stats->{'deletes'});
+	my ($path,$name) = ($file =~ m/\// ? $file =~ m/(.*)\/(.*)/ : ("",$file));
+	my ($group, $module, $package, $relativePath) = splitModuleFilePath($dir, $path);
+	my $action = $stats->{'action'};
+	my $inserts = $stats->{'inserts'};
+	my $deletes = $stats->{'deletes'};
+
+	printf("File,name,%s,group,%s,module,%s,package,%s,path,%s,action,%s,inserts,%s,deletes,%s\n", 
+			$name, $group, $module, $package, $relativePath, $action, $inserts, $deletes);
+}
+
+
+#########################################################################################################
+#
+#  Function Section
+#
+
+sub splitModuleFilePath
+{
+	my ($baseDir, $path) = @_;
+
+	my (@parts) = split('/', $path);
+	my $modulePath = findModulePath($baseDir, @parts);
+	if ($modulePath eq "")
+	{
+		return ("","","",$path);
+	}
+	else
+	{
+		my ($group, $module) = getModuleInfo($baseDir, $modulePath);
+		my $package = ($path =~ m/$modulePath\/src\/main\/java\/(.*)/ ? $1 : "");
+		my ($relativePath) =~ m/$modulePath\/(.*)/;
+		return ($group, $module, $package, $relativePath);
+	}
+}
+
+sub getModuleInfo
+{
+	my ($baseDir, $modulePath) = @_;
+	my $dependencyTreeFile = "$modulePath/target/dependency-tree.txt";
+	$dependencyTreeFile =~ s/ /\\ /g;
+	my $results = `head -1 $dependencyTreeFile`;
+	my ($group, $module) = $results =~ /digraph (.*?):(.*?):.*/;
+	return ($group,$module);
+}
+
+#
+# Find the Maven project directory
+#
+sub findModulePath
+{
+	my ($baseDir, @parts) = @_;
+
+	my $path = $baseDir;
+	my $moduleDir = (-f "$path/pom.xml" ? $path : "");
+	for my $part (@parts)
+	{
+		$path .= "/$part";
+		$moduleDir = (-f "$path/pom.xml" ? $path : $moduleDir);
+	}
+	return $moduleDir;
+}
+
+sub getFileStats
+{
+	print "Looking for repository\n";
+	my ($dir, $changeset) = @_;
+
+	if (-d "$dir/.hg")
+	{
+	    getFileStatsHg($changeset);
+	}
+	elsif (-d "$dir/.git")
+	{
+	    getFileStatsGit($changeset);
+	}
+	else
+	{
+	    die "Could not find repository: $dir";
+	}
+}
+
+sub getFileStatsHg
+{
+	my ($changeset) = @_;
+
+	my %fileStatsMap = ();
+
+	my @results = `cd $dir; hg status --change $changeset`;
+
+	my $line;
+	for $line (@results)
+	{
+	    chomp($line);
+	    my ($action, $file) = $line =~ m/([ARM])? (.*)/;
+
+	    $file =~ s/\\/\//g;
+	    if ($action == "A" || $action == "R" || $action == "M")
+	    {
+	        my $statsResult = `cd $dir; hg log --stat -r $changeset $file |tail -2 |head -1`;
+	        chomp($statsResult);
+	        my ($inserts,$deletes) = $statsResult =~ m/[0-9]* files changed, ([0-9]*) insertions\(\+\), ([0-9]*) deletions\(\-\)/;
+		
+			my %fileStats = ('action' => $action, 'inserts' => $inserts, 'deletes' => $deletes);
+			$fileStatsMap{$file} = \%fileStats;
+	    }
+	}
+
+	return %fileStatsMap;
+}
+
+sub getFileStatsGit
+{
+	my ($changeset) = @_;
+
+	my %fileStatsMap = ();
+	
+	for my $line (`cd $dir; git log --name-status --format=""  -1 $changeset`)
+	{
+		chomp($line);
+		my ($action, $file) = $line =~ m/([MAR])\s+(.*)/;
+		my %fileStats = ('action' => $action);
+		$fileStatsMap{$file} = \%fileStats;
+	}
+
+	for my $line (`cd $dir; git log --numstat --format=""  -1 $changeset`)
+	{
+		chomp($line);
+		my ($inserts, $deletes, $file) = $line =~ m/([0-9]*)\s+([0-9]*)\s+(.*)/;
+		my $stats = $fileStatsMap{$file};
+		$stats->{'inserts'} = $inserts;
+		$stats->{'deletes'} = $deletes;
+	}
+
+	return %fileStatsMap;
 }

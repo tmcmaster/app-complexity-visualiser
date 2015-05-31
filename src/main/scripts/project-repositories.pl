@@ -1,10 +1,14 @@
 #!/usr/bin/perl
 
 use strict;
-
 use lib './lib';
-
 use Complexity::Path;
+
+#########################################################################################################
+#
+#  Main Section
+#
+
 
 my ($dir) = getDirectoryPlusArgs(@ARGV);
 my $project = getNameForPath($dir);
