@@ -2,8 +2,8 @@
 
 use strict;
 
-use lib './lib';
 
+use lib './lib';
 use Complexity::Util;
 use Complexity::Path;
 

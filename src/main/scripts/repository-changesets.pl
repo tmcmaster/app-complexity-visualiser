@@ -1,16 +1,25 @@
 #!/usr/bin/perl
 
 use strict;
-use lib './lib';
 
+use lib './lib';
 use Complexity::Util;
 use Complexity::Path;
+
+
+#########################################################################################################
+#
+#  Main Section
+#
+
 
 my ($dir) = getDirectoryPlusArgs(@ARGV);
 my $repository = getNameForPath($dir);
 
+# print the parent record
 printf("Repository,name,%s,path,%s,edge,CONTAINS\n", $repository, $dir);
 
+# print the child records
 if (-d "$dir/.hg")
 {
     printChangesetsHg($dir);
@@ -23,6 +32,13 @@ else
 {
     die "Could not find repository: $dir";
 }
+
+
+#########################################################################################################
+#
+#  Function Section
+#
+
 
 sub printChangesetsHg
 {
@@ -51,7 +67,7 @@ sub printChangesetsGit
     my $deletes;
     my $branch;
     my $commiter;
-    for my $line (`cd $dir; git log --date=short --shortstat --oneline --format="%H | %an | %ad | %cn | %d |" |head`)
+    for my $line (`cd $dir; git log --date=short --shortstat --oneline --format="%H | %an | %ad | %cn | %d |"`)
     {
         chomp($line);
         unless ($line =~ m/^$/)
