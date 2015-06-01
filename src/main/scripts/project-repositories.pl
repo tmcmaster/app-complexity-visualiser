@@ -13,7 +13,7 @@ use Complexity::Path;
 my ($dir) = getDirectoryPlusArgs(@ARGV);
 my $project = getNameForPath($dir);
 
-printf("Project,name:%s,path,%s\n", $project, $dir);
+printf("Project,name,%s,path,%s,edge,CONTAINS\n", $project, $dir);
 for my $path (`find $dir -name '.git' -o -name '.hg'`)
 {
 	chomp($path);
