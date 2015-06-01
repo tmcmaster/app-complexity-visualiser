@@ -31,7 +31,6 @@ sub getDirectoryPlusArgs
 	$dir = `(cd $dir; pwd)`;
 	chomp($dir);
 
-	print "--- $dir\n";
 	return ($dir, @ARGV[1..$#ARGV]);
 }
 

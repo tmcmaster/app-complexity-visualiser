@@ -1,0 +1,16 @@
+project -> module -> package -> class
+
+ClassID(module,package,class)
+
+project-repositories
+repository-developers
+repository-changesets
+changesset-classes
+project-modules
+module-packages
+module-classes
+class-dependencies
+
+repository-modules
+
+

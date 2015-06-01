@@ -72,14 +72,19 @@ sub printChangesetsGit
         chomp($line);
         unless ($line =~ m/^$/)
         {
-            if ($line =~ m/^\s+/)
+            #print "$line\n";
+            if ($line =~ m/^ /)
             {
                 ($files,$inserts,$deletes) = $line =~ m/\s+([0-9]*?) file changed, ([0-9]*?) insertions\(\+\), ([0-9]*?) deletions\(\-\)/;
             }
             else
             {
                 printRecord($changeset,$date,$files,$inserts,$deletes,$developer,$branch);
+                $files = 0;
+                $inserts = 0;
+                $deletes = 0;
                 ($changeset,$developer,$date,$commiter,$branch) = $line =~ m/(.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \|/;
+                $branch =~ s/,//g;                
             }
         }
     }

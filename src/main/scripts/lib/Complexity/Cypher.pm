@@ -4,7 +4,7 @@ use strict;
 
 use Exporter qw(import);
 
-our @EXPORT = qw(cypherGetNodeId cypherCreateNode cypherCreateRelationship executeCypher);
+our @EXPORT = qw(cypherGetNodeId cypherCreateNode cypherCreateRelationship executeCypher convertKeyValueMapToPropertiesString);
 
 sub cypherGetNodeId
 {
@@ -33,7 +33,7 @@ sub cypherCreateRelationship
 	my $relationshipPropertiesString = convertKeyValueMapToPropertiesString($relationshipProperties);
 	my $targetPropertiesString = convertKeyValueMapToPropertiesString($targetProperties);
 
-	my $cypher = sprintf("MATCH (s) WHERE id(s) = %d CREATE UNIQUE (s)-[r:%s {%s}]->(t:%s {%s}) RETURN id(r)", $sourceId, $relationshipType, $relationshipPropertiesString, $targetType, $targetPropertiesString);
+	my $cypher = sprintf("MATCH (s) WHERE id(s) = %d CREATE UNIQUE (s)-[r:%s {%s}]->(t:%s {%s}) RETURN id(r),id(t)", $sourceId, $relationshipType, $relationshipPropertiesString, $targetType, $targetPropertiesString);
 
         return ($cypher);
 }
@@ -47,6 +47,8 @@ sub executeCypher
 
 	my $result = `curl -s -H "Accept: application/json" -H "Content-type: application/json" -X POST --data-binary '{ "query" : "$cypher" }' http://localhost:7474/db/data/cypher`;
 
+	print "$result\n";
+	
 	return $result;
 }
 
