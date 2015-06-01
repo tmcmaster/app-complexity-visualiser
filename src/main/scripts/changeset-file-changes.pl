@@ -85,10 +85,17 @@ sub getModuleInfo
 {
 	my ($baseDir, $modulePath) = @_;
 	my $dependencyTreeFile = "$modulePath/target/dependency-tree.txt";
-	$dependencyTreeFile =~ s/ /\\ /g;
-	my $results = `head -1 $dependencyTreeFile`;
-	my ($group, $module) = $results =~ /digraph (.*?):(.*?):.*/;
-	return ($group,$module);
+	if (-f $dependencyTreeFile)
+	{
+		$dependencyTreeFile =~ s/ /\\ /g;
+		my $results = `head -1 $dependencyTreeFile`;
+		my ($group, $module) = $results =~ /digraph "(.*?):(.*?):.*/;
+		return ($group,$module);
+	}
+	else
+	{
+		return ("","");
+	}
 }
 
 #
@@ -110,7 +117,6 @@ sub findModulePath
 
 sub getFileStats
 {
-	print "Looking for repository\n";
 	my ($dir, $changeset) = @_;
 
 	if (-d "$dir/.hg")
