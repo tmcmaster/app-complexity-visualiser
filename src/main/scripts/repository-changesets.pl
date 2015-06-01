@@ -5,7 +5,7 @@ use strict;
 use lib './lib';
 use Complexity::Util;
 use Complexity::Path;
-
+use JSON::Parse;
 
 #########################################################################################################
 #
@@ -75,7 +75,12 @@ sub printChangesetsGit
             #print "$line\n";
             if ($line =~ m/^ /)
             {
-                ($files,$inserts,$deletes) = $line =~ m/\s+([0-9]*?) file changed, ([0-9]*?) insertions\(\+\), ([0-9]*?) deletions\(\-\)/;
+                $files = ($line =~ m/([0-9]*?) file[s]* changed/ ? $1 : 0);
+                $inserts = ($line =~ m/([0-9]*?) insertion[s]*/ ? $1 : 0);
+                $deletes = ($line =~ m/([0-9]*?) deletion[s]*/ ? $1 : 0);
+
+                #($files,$inserts,$deletes) = $line =~ m/\s+([0-9]*?) file[s]* changed, ([0-9]*?) insertion[s]*\(\+\), ([0-9]*?) deletion[s]*\(\-\)/;
+                #print "---- Found changes: [$line]: $files,$inserts,$deletes\n";
             }
             else
             {
