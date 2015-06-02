@@ -20,5 +20,5 @@ for my $path (`find $dir -name '.git' -o -name '.hg'`)
 
 	my ($baseDir, $relativePathDir, $name, $file) = splitPath($dir, $path);
 	my $type = ($file eq ".hg" ? "Mercurial" : ($file eq ".git" ? "Git" : ""));
-	printf("Repository,name,%s,type,%s,path,%s\n", $name, $type, $relativePathDir);
+	printf("Repository,name,%s,type,%s,path,%s,edge,\n", $name, $type, $relativePathDir);
 }

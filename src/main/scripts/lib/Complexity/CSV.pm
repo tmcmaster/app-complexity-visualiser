@@ -18,7 +18,8 @@ sub splitEdgeDefinition
 {
         my ($edgeDefinition) = @_;
 
-        my ($class, $nodePropertiesString, $junk, $edgePropertiesString) = $edgeDefinition =~ m/(.*?),(.*)(,edge,)*(.*)/;
+        my ($class, $nodePropertiesString, $edgePropertiesString) = $edgeDefinition =~ m/(.*?),(.*),edge,(.*)/;
+		printf("\n----- [%s]   [%s | %s]\n",$edgeDefinition,$nodePropertiesString,$edgePropertiesString);
         my $nodeProperties = convertKeyValueListToMap(split(",", $nodePropertiesString));
         my $edgeProperties = convertKeyValueListToMap(split(",", $edgePropertiesString));
 
