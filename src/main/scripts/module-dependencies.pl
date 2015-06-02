@@ -53,12 +53,12 @@ for $line (@lines)
 	{
 		$group = $1;
 		$artifact = $2;
-		printf("SourceModule,name,%s,group,%s\n",$artifact,$group);
+		printf("SourceModule,name,%s,group,%s,edge,DEPENDS_ON\n",$artifact,$group);
 	}
 	elsif ($line =~ m/.*\" -> \"(.*?):(.*?):.*/)
 	{
 		my $targetGroup = $1;
 		my $targetArtifact = $2;
-		printf("TargetModule,name,%s,group,%s\n",$targetArtifact, $targetGroup);
+		printf("TargetModule,name,%s,group,%s,edge,\n",$targetArtifact, $targetGroup);
 	}
 }

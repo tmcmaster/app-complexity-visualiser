@@ -100,10 +100,126 @@ sub importRepository
 		importDeveloper($childChangesetId, $developerName);
 		importChangesetFiles($repositoryDirectory, $childChangesetId, $changesetName);
 	}		
+
+	importRepositoryModules($repositoryDirectory, $repositoryId);
 }
 
+
 #
-# Import File details.
+# Import Repository Module details.
+#
+sub importRepositoryModules
+{
+	my ($repositoryDirectory, $repositoryId) = @_;
+
+	# load the Repository to Module data.
+	my ($parentRepositoryLine, @childModuleLineList) = loadData('repository-modules.pl', $repositoryDirectory);
+
+	# parse the Repository data
+	my ($parentRepositoryType, $parentRepositoryProperties, $repositoryToModuleType) = splitNodeDefinition($parentRepositoryLine);
+
+	# get/create the Repository
+	my $parentRepositoryId = (defined $repositoryId ? $repositoryId : getOrCreateNode($parentRepositoryType, $parentRepositoryProperties));
+
+	# process all of the Module child records
+	for my $childModuleLine (@childModuleLineList)
+	{
+		chomp($childModuleLine);
+
+		# parse Module data
+		my ($childModuleType, $childModuleProperties, $repositoryToModuleProperties) = splitEdgeDefinition($childModuleLine);
+
+		# get/create the Module
+		my $childModuleId = getOrCreateNode($childModuleType, $childModuleProperties);
+
+		# create relationship between Repository and Module
+		createRelationship($parentRepositoryId, $childModuleId, $repositoryToModuleType, $repositoryToModuleProperties);
+
+		my $moduleName = $childModuleProperties->{'name'};
+		my $modulePath = $childModuleProperties->{'path'};
+		#my $moduleDir = generateChildPath($repositoryDirectory, $modulePath, $moduleName);
+		my $moduleDir = ($modulePath eq "" ? $repositoryDirectory : sprintf("%s/%s", $repositoryDirectory, $modulePath));
+		if (-d "$moduleDir")
+		{
+			importModuleDependencies($moduleDir, $childModuleId);
+			importModuleFiles($moduleDir, $childModuleId);
+		}
+		else
+		{
+			print STDERR "!!! WARNING !!! Could not find the Module Directory: " . $moduleDir;
+		}
+	}		
+}
+
+
+#
+# Import Module Dependency details.
+#
+sub importModuleDependencies
+{
+	my ($moduleDirectory, $moduleId) = @_;
+
+	# load the Module Dependency data.
+	my ($parentModuleLine, @childDependencyLineList) = loadData('module-dependencies.pl', $moduleDirectory);
+
+	# parse the Module data
+	my ($parentModuleType, $parentModuleProperties, $moduleToDependencyType) = splitNodeDefinition($parentModuleLine);
+
+	# get/create the Dependency
+	my $parentModuleId = (defined $moduleId ? $moduleId : getOrCreateNode('Module', $parentModuleType, $parentModuleProperties));
+
+	# process all of the Dependency child records
+	for my $childDependencyLine (@childDependencyLineList)
+	{
+		chomp($childDependencyLine);
+
+		# parse Dependency data
+		my ($childDependencyType, $childDependencyProperties, $moduleToDependencyProperties) = splitEdgeDefinition($childDependencyLine);
+
+		# get/create the Dependency
+		my $childDependencyId = getOrCreateNode('Module', $childDependencyProperties);
+
+		# create relationship between Module and Dependency
+		createRelationship($parentModuleId, $childDependencyId, $moduleToDependencyType, $moduleToDependencyProperties);
+	}
+}
+
+
+#
+# Import Module File details.
+#
+sub importModuleFiles
+{
+	my ($moduleDirectory, $moduleId) = @_;
+
+	# load the Module to File data.
+	my ($parentModuleLine, @childFileLineList) = loadData('module-classes.pl', $moduleDirectory);
+
+	# parse the Module data
+	my ($parentModuleType, $parentModuleProperties, $moduleToFileType) = splitNodeDefinition($parentModuleLine);
+
+	# get/create the Module
+	my $parentModuleId = (defined $moduleId ? $moduleId : getOrCreateNode($parentModuleType, $parentModuleProperties));
+
+	# process all of the File child records
+	for my $childFileLine (@childFileLineList)
+	{
+		chomp($childFileLine);
+
+		# parse File data
+		my ($childFileType, $childFileProperties, $moduleToFileProperties) = splitEdgeDefinition($childFileLine);
+
+		# get/create the Filel
+		my $childFileId = getOrCreateNode($childFileType, $childFileProperties);
+
+		# create relationship between Module and File
+		createRelationship($parentModuleId, $childFileId, $moduleToFileType, $moduleToFileProperties);
+	}
+}
+
+
+#
+# Import Changeset File details.
 #
 sub importChangesetFiles
 {
@@ -130,7 +246,7 @@ sub importChangesetFiles
 
 		# create relationship between Changeset and File
 		createRelationship($parentChangesetId, $childFileId, $changesetToFileType, $changesetToFileProperties);
-	}	
+	}
 }
 
 #
