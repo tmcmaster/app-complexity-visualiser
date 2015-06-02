@@ -47,5 +47,5 @@ for $filePath (@filePaths)
 	chomp($filePath);
 	my ($package, $class) = $filePath =~ m/(.*)\/(.*?).java/;
 	$package =~ tr/\//\./;
-	printf("Class,name,%s,package,%s\n",$class,$package);	
+	printf("File,name,%s,package,%s,edge,\n",$class,$package);	
 }

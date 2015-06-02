@@ -2,7 +2,7 @@ package Complexity::Path;
 
 use Exporter qw(import);
 
-our @EXPORT = qw(getDirectoryPlusArgs getNameForPath splitPath);
+our @EXPORT = qw(getDirectoryPlusArgs getNameForPath splitPath generateChildPath);
 
 sub getDirectoryPlusArgs
 {
@@ -43,6 +43,24 @@ sub getNameForPath
 	my ($name) = ($path =~ m/\// ? $path =~ m/.*\/(.*)/ : $path);
 	
 	return $name;
+}
+
+sub generateChildPath
+{
+	my ($baseDir,$relativePath,$name) = @_;
+
+	my $childPath;
+	unless ($relativePath eq "")
+	{
+		$childPath = sprintf("%s/%s/%s", $baseDir, $relativePath, $name);
+	}
+	else
+	{
+		my  $parentName = ($baseDir =~ m/.*\/(.*?)/ ? $1 : $baseDir);
+		$childPath = ($parentName eq $name ? $baseDir : sprintf("%s/%s", $baseDir, $name));
+	}
+
+	return $childPath;
 }
 
 #
