@@ -42,7 +42,7 @@ unless (defined $changeset)
 
 my %fileStatsMap = getFileStats($dir, $changeset);
 
-printf("Changeset,name,%s\n", $changeset);
+printf("Changeset,name,%s,edge,CONTAINS\n", $changeset);
 for my $file (keys %fileStatsMap)
 {
 	my $stats = $fileStatsMap{$file};
@@ -52,8 +52,8 @@ for my $file (keys %fileStatsMap)
 	my $inserts = $stats->{'inserts'};
 	my $deletes = $stats->{'deletes'};
 
-	printf("File,name,%s,group,%s,module,%s,package,%s,path,%s,action,%s,inserts,%s,deletes,%s\n", 
-			$name, $group, $module, $package, $relativePath, $action, $inserts, $deletes);
+	printf("File,name,%s,group,%s,module,%s,package,%s,path,%s,edge,action,%s,inserts,%s,deletes,%s,changes,%s\n", 
+			$name, $group, $module, $package, $relativePath, $action, $inserts, $deletes, $inserts + $deletes);
 }
 
 
@@ -74,16 +74,26 @@ sub splitModuleFilePath
 	}
 	else
 	{
-		my ($group, $module) = getModuleInfo($baseDir, $modulePath);
-		my $package = ($path =~ m/$modulePath\/src\/main\/java\/(.*)/ ? $1 : "");
-		my ($relativePath) =~ m/$modulePath\/(.*)/;
-		return ($group, $module, $package, $relativePath);
+		my ($group, $module) = getModuleInfo($modulePath);
+		my ($relativePath) = ($modulePath eq $baseDir ? "" : $modulePath =~ m/$baseDir\/(.*)/);
+		my $package;
+		if ($relativePath eq "")
+		{
+		 	$package = ($path =~ m/src\/main\/java\/(.*)/ ? $1 : "");
+		}
+		else
+		{
+		 	$package = ($path =~ m/$relativePath\/src\/main\/java\/(.*)/ ? $1 : "");
+		}
+		$package =~ tr/\//\./;
+		#printf("\n--- [%s]\n", join(' | ', ($path, $modulePath, $relativePath, $group, $module, $package)));
+		return ($group, $module, $package, $path);
 	}
 }
 
 sub getModuleInfo
 {
-	my ($baseDir, $modulePath) = @_;
+	my ($modulePath) = @_;
 	my $dependencyTreeFile = "$modulePath/target/dependency-tree.txt";
 	if (-f $dependencyTreeFile)
 	{
@@ -112,6 +122,15 @@ sub findModulePath
 		$path .= "/$part";
 		$moduleDir = (-f "$path/pom.xml" ? $path : $moduleDir);
 	}
+	# if ($moduleDir eq $path)
+	# {
+	# 	return "";
+	# }
+	# else
+	# {
+	# 	$moduleDir =~ /$path\/(.*)/;
+	# 	return 	$1;
+	# }
 	return $moduleDir;
 }
 

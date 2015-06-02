@@ -2,7 +2,7 @@ package Complexity::Util;
 
 use Exporter qw(import);
 
-our @EXPORT = qw(parseDeveloperName);
+our @EXPORT = qw(parseDeveloperName loadData);
 
 sub parseDeveloperName
 {
@@ -30,6 +30,31 @@ sub parseDeveloperName
     my $developerString = join(' & ', @developers);
 
     return $developerString;
+}
+
+sub loadData
+{
+    my ($script, @args) = @_;
+
+    my $argsString = join(' ', @args);
+
+    my $command = sprintf("./%s %s", $script, $argsString);
+    #print "[$command]\n";
+    my $parentLine;
+    my @childLines = ();
+    for my $line (`$command`)
+    {
+        chomp($line);
+        unless (defined $parentLine)
+        {
+            $parentLine = $line;
+        }
+        else
+        {
+            push(@childLines, $line);
+        }
+    }
+    return ($parentLine, @childLines);
 }
 
 1;
