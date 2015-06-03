@@ -37,8 +37,8 @@ my $moduleName = `basename $moduleDir`;
 chomp($moduleDir);
 chomp($moduleName);
 
-printf("Module,name,%s,edge,CONTAINS\n", $moduleName);
 my $sourceDir = sprintf("%s/src/%s/java", $moduleDir, $mode);
+printf("Module,name,%s,path,%s,edge,CONTAINS\n", $moduleName, $sourceDir);
 my @filePaths = `cd $sourceDir; find -type f -name '*.java' -printf "%P\n"`;
 
 my $filePath;
@@ -47,5 +47,6 @@ for $filePath (@filePaths)
 	chomp($filePath);
 	my ($package, $class) = $filePath =~ m/(.*)\/(.*?).java/;
 	$package =~ tr/\//\./;
-	printf("File,name,%s,package,%s,edge,\n",$class,$package);	
+	my ($path) = $filePath =~ m/(.*)\/.*/;
+	printf("File,name,%s,package,%s,path,%s,edge,\n",$class,$package,$path);	
 }

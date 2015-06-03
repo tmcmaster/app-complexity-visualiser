@@ -8,22 +8,22 @@ our @EXPORT = qw(cypherGetNodeId cypherCreateNode cypherCreateRelationship execu
 
 sub cypherGetNodeId
 {
-        my ($class, $nodeProperties) = @_;
+    my ($class, $nodeProperties, @includeList) = @_;
 
-	my $propertiesString = convertKeyValueMapToPropertiesString($nodeProperties);
+	my $propertiesString = convertKeyValueMapToPropertiesString($nodeProperties, @includeList);
 	my $cypher = sprintf("MATCH (n:%s {%s}) RETURN id(n)", $class, $propertiesString);
 
-        return ($cypher);
+    return ($cypher);
 }
 
 sub cypherCreateNode
 {
-        my ($class, $nodeProperties) = @_;
+    my ($class, $nodeProperties) = @_;
 
 	my $propertiesString = convertKeyValueMapToPropertiesString($nodeProperties);
 	my $cypher = sprintf("CREATE (n:%s {%s}) RETURN id(n)", $class, $propertiesString);
 
-        return ($cypher);
+    return ($cypher);
 }
 
 sub cypherCreateRelationship
@@ -35,7 +35,7 @@ sub cypherCreateRelationship
 
 	my $cypher = sprintf("MATCH (s) WHERE id(s) = %d CREATE UNIQUE (s)-[r:%s {%s}]->(t:%s {%s}) RETURN id(r),id(t)", $sourceId, $relationshipType, $relationshipPropertiesString, $targetType, $targetPropertiesString);
 
-        return ($cypher);
+    return ($cypher);
 }
 
 sub executeCypher
@@ -43,10 +43,8 @@ sub executeCypher
 	my ($cypher) = @_;
 
 	$cypher =~ s/\"/\\"/g;
-	print "$cypher\n";
-
+	print "$cypher\n"; 
 	my $result = `curl -s -H "Accept: application/json" -H "Content-type: application/json" -X POST --data-binary '{ "query" : "$cypher" }' http://localhost:7474/db/data/cypher`;
-
 	print "$result\n";
 	
 	return $result;
@@ -54,10 +52,10 @@ sub executeCypher
 
 sub convertKeyValueMapToPropertiesString
 {
-	my ($nodeProperties) = @_;
+	my ($nodeProperties, @includeList) = @_;
 
 	my @nodePropertiesList = ();
-	for my $key (keys %{$nodeProperties})
+	for my $key ($#includeList > 0 ? @includeList : keys %{$nodeProperties})
 	{
 		my $value = $nodeProperties->{$key};
 		push(@nodePropertiesList, sprintf("%s:\"%s\"", $key, $value));
