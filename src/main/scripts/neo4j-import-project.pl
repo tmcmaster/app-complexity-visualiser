@@ -33,6 +33,8 @@ sub importProject
 {
 	my ($projectDirectory) = @_;
 
+	print "INFO: Importing Project: $projectDirectory\n";
+
 	# load the Project to Repository data.
 	my ($parentProjectLine, @childRepositoryLineList) = loadData('project-repositories.pl', $projectDirectory);
 
@@ -70,6 +72,8 @@ sub importProject
 sub importRepository
 {
 	my ($repositoryDirectory, $repositoryId) = @_;
+
+	print "INFO: Importing Repository: $repositoryDirectory\n";
 
 	# load the Repository to Changeset data.
 	my ($parentRepositoryLine, @childChangesetLineList) = loadData('repository-changesets.pl', $repositoryDirectory);
@@ -111,6 +115,8 @@ sub importRepository
 sub importRepositoryModules
 {
 	my ($repositoryDirectory, $repositoryId) = @_;
+
+	print "INFO: Importing Repository Modules: $repositoryDirectory\n";
 
 	# load the Repository to Module data.
 	my ($parentRepositoryLine, @childModuleLineList) = loadData('repository-modules.pl', $repositoryDirectory);
@@ -159,6 +165,8 @@ sub importModuleDependencies
 {
 	my ($moduleDirectory, $moduleId) = @_;
 
+	print "INFO: Importing Module Dependencies: $moduleDirectory\n";
+	
 	# load the Module Dependency data.
 	my ($parentModuleLine, @childDependencyLineList) = loadData('module-dependencies.pl', $moduleDirectory);
 
@@ -192,6 +200,8 @@ sub importModuleFiles
 {
 	my ($moduleDirectory, $moduleId) = @_;
 
+	print "INFO: Importing ModuleFiles: $moduleDirectory\n";
+
 	# load the Module to File data.
 	my ($parentModuleLine, @childFileLineList) = loadData('module-classes.pl', $moduleDirectory);
 
@@ -209,14 +219,55 @@ sub importModuleFiles
 		# parse File data
 		my ($childFileType, $childFileProperties, $moduleToFileProperties) = splitEdgeDefinition($childFileLine);
 
-		# get/create the Filel
+		# get/create the File
 		my $childFileId = getOrCreateNode($childFileType, $childFileProperties);
 
 		# create relationship between Module and File
 		createRelationship($parentModuleId, $childFileId, $moduleToFileType, $moduleToFileProperties);
+
+		my $modulePath = $parentModuleProperties->{'path'};
+		my $filePath = $childFileProperties->{'path'};
+		my $fileName = $childFileProperties->{'name'};
+		my $fileFullPath = sprintf("%s/%s/%s.java", $modulePath, $filePath, $fileName);
+
+		# create File Dependencies
+		importFileDependencies($fileFullPath, $childFileId);
 	}
 }
 
+#
+# Import File Dependencies.
+#
+sub importFileDependencies
+{
+	my ($filePath, $fileId) = @_;
+
+	print "INFO: Importing File dependencies: $filePath\n";
+
+	# load File to Dependency data
+	my ($parentFileLine, @childDependencyLineList) = loadData('class-references.pl', $filePath, "au.com.cgu");
+
+	# parse the Dependency data
+	my ($parentFileType, $parentFileProperties, $fileToDependencyType) = splitNodeDefinition($parentFileLine);
+
+	# get/create the File
+	my $parentFileId = (defined $fileId ? $fileId : getOrCreateNode($parentFileType, $parentFileProperties, ('name','package')));
+
+	# process all of the Dependency child records
+	for my $childDependencyLine (@childDependencyLineList)
+	{
+		chomp($childDependencyLine);
+
+		# parse Dependency data
+		my ($childDependencyType, $childDependencyProperties, $fileToDependencyProperties) = splitEdgeDefinition($childDependencyLine);
+
+		# get/create the Dependency
+		my $childDependencyId = getOrCreateNode($childDependencyType, $childDependencyProperties, ('name','package'));
+
+		# create relationship between File and Dependency
+		createRelationship($parentFileId, $childDependencyId, $fileToDependencyType, $fileToDependencyProperties);
+	}
+}
 
 #
 # Import Changeset File details.
@@ -224,6 +275,8 @@ sub importModuleFiles
 sub importChangesetFiles
 {
 	my ($repositoryDirectory, $changesetId, $changesetName) = @_;
+
+	print "INFO: Importing Changeset Files: $repositoryDirectory\n";
 
 	my ($parentChangesetLine, @childFileLineList) = loadData('changeset-file-changes.pl', $repositoryDirectory, $changesetName);
 
@@ -256,6 +309,9 @@ sub importDeveloper
 {
 	my ($changesetId, $developerName) = @_;
 
+	print "INFO: Importing Developer: $developerName\n";
+
+	my ($repositoryDirectory, $changesetId, $changesetName) = @_;
 	my %developerProperties = ('name'=>$developerName);
 	my $developerId = getOrCreateNode('Developer', \%developerProperties);
 	my %createdByProperties = ();

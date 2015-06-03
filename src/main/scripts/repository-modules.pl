@@ -22,11 +22,11 @@ for $line (@pomFiles)
 	chomp($line);
 	$line =~ qr/$dir\/(.*)\/pom.xml/;
 	my $relativePath = $1;
-	if (-f "$dir/$relativePath/target/dependency-tree.txt")
+	if (-f "$dir/$relativePath/target/dependency-tree.txt" && -d "$dir/$relativePath/src/main/java")
 	{
 		my $moduleLine = `head -1 $dir/$relativePath/target/dependency-tree.txt`;
 		chomp($moduleLine);
 		my ($group,$name) = $moduleLine =~ m/^digraph \"(.*?):(.*?):.*/;
-		printf("Module,name,%s,module,%s,path,%s,edge,\n",$name,$group,$relativePath);
+		printf("Module,name,%s,group,%s,path,%s,edge,\n",$name,$group,$relativePath);
 	}
 }

@@ -16,7 +16,7 @@ sub createRelationship
 	my $cypher = sprintf("MATCH (c),(d) WHERE id(c) = %d and id(d) = %d CREATE UNIQUE (c)-[:%s {%s}]->(d)",
 	 					$sourceId, $targetId, $edgeType, $edgePropertiesString);
 
-	print "\n[$cypher]\n";
+	#print "\n[$cypher]\n";
 
 	executeCypher($cypher);
 }
@@ -46,11 +46,14 @@ sub parseResults
 }
 
 
+#
+#  TODO: This can be done with MERGE ??
+#
 sub getOrCreateNode
 {
-	my ($class, $nodeProperties) = @_;
+	my ($class, $nodeProperties, @includeList) = @_;
 
-	my $nodeId = parseId(executeCypher(cypherGetNodeId($class, $nodeProperties)));
+	my $nodeId = parseId(executeCypher(cypherGetNodeId($class, $nodeProperties, @includeList)));
 	if ($nodeId < 0)
 	{
 		$nodeId = parseId(executeCypher(cypherCreateNode($class, $nodeProperties)));
