@@ -1,0 +1,6 @@
+^target
+^\.settings
+.*~
+csv-data
+junk
+neo4j\.*
