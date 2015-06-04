@@ -23,7 +23,11 @@ sub parseDeveloperName
         $developer =~ s/\s+$//;
         $developer = lc $developer;
         $developer =~ tr/\./ /;
-        $developer =~ s/(\w+)/\u$1/g;
+        if ($developer =~ m/ /)
+        {
+            # not a username, uppercase the first letters of each word.
+            $developer =~ s/(\w+)/\u$1/g;
+        }
         push(@developers, $developer);
     }
 
