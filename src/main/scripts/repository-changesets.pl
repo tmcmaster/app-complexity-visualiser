@@ -50,8 +50,6 @@ sub printChangesetsHg
 
         my ($date,$changesetId,$branch,$developer) = split('\|',$changeset);
 
-        my $developerString = parseDeveloperName($developer);
-
         my $statsLine = `(cd $dir; hg log --stat -r $changesetId |tail -2 |head -1)`;
         chomp($statsLine);
         my $files = ($statsLine =~ m/([0-9]*?) file[s]* changed/ ? $1 : 0);
@@ -110,6 +108,8 @@ sub printRecord
 
     if (defined $changeset)
     {
-        printf("Changeset,name,%s,date,%s,files,%d,inserts,%d,deletes,%d,changes,%s,developer,%s,branch,%s,edge,\n", $changeset,$date,$files,$inserts,$deletes,$inserts+$deletes,$developer,$branch)
+        my $developerString = parseDeveloperName($developer);
+
+        printf("Changeset,name,%s,date,%s,files,%d,inserts,%d,deletes,%d,changes,%s,developer,%s,branch,%s,edge,\n", $changeset,$date,$files,$inserts,$deletes,$inserts+$deletes,$developerString,$branch)
     }
 }
