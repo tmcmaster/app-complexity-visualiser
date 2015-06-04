@@ -3,4 +3,5 @@
 .*~
 csv-data
 junk
-neo4j\.*
+neo4j/*/.*.csv
+nohup.out
