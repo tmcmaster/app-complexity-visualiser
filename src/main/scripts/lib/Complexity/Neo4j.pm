@@ -59,6 +59,8 @@ sub getOrCreateNode
 		$nodeId = parseId(executeCypher(cypherCreateNode($class, $nodeProperties)));
 	}
 
+    printf("-------- Creating Node: %s(%d)\n", $class, $nodeId);
+
 	return $nodeId;
 }
 
@@ -90,7 +92,7 @@ sub loadData
 	my $argsString = join(' ', @args);
 
 	my $command = sprintf("./%s %s", $script, $argsString);
-	#print "[$command]\n";
+	print "[$command]\n";
 	my $parentLine;
 	my @childLines = ();
 	for my $line (`$command`)

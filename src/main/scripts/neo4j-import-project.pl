@@ -311,7 +311,6 @@ sub importDeveloper
 
 	print "INFO: Importing Developer: $developerName\n";
 
-	my ($repositoryDirectory, $changesetId, $changesetName) = @_;
 	my %developerProperties = ('name'=>$developerName);
 	my $developerId = getOrCreateNode('Developer', \%developerProperties);
 	my %createdByProperties = ();
