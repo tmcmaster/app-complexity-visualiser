@@ -1,8 +1,34 @@
 package Complexity::Util;
 
+
+###################################################################################################################
+#
+#  Export Section
+#
+
+
 use Exporter qw(import);
 
-our @EXPORT = qw(parseDeveloperName loadData);
+our @EXPORT = qw(parseDeveloperName loadData validateScripts);
+
+
+###################################################################################################################
+#
+#  Libraries Section
+#
+
+
+use lib './lib';
+use Complexity::Logging;
+
+my $LOGGER = getOrCreateLogger('lib-util');
+
+
+###################################################################################################################
+#
+#  Function Section
+#
+
 
 sub parseDeveloperName
 {
@@ -23,7 +49,11 @@ sub parseDeveloperName
         $developer =~ s/\s+$//;
         $developer = lc $developer;
         $developer =~ tr/\./ /;
-        $developer =~ s/(\w+)/\u$1/g;
+        if ($developer =~ m/ /)
+        {
+            # not a username, uppercase the first letters of each word.
+            $developer =~ s/(\w+)/\u$1/g;
+        }
         push(@developers, $developer);
     }
 
@@ -55,6 +85,15 @@ sub loadData
         }
     }
     return ($parentLine, @childLines);
+}
+
+sub validateScripts
+{
+    for my $scriptString (@_)
+    {
+        my $script = (split(' ', $scriptString))[0];
+        logdie("Could not find script: $script") unless (-f "$script");
+    }
 }
 
 1;

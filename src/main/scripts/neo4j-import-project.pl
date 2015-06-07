@@ -75,37 +75,37 @@ sub importRepository
 
 	print "INFO: Importing Repository: $repositoryDirectory\n";
 
-	# load the Repository to Changeset data.
-	my ($parentRepositoryLine, @childChangesetLineList) = loadData('repository-changesets.pl', $repositoryDirectory);
-
-	# parse the Repository data
-	my ($parentRepositoryType, $parentRepositoryProperties, $repositoryToChangesetType) = splitNodeDefinition($parentRepositoryLine);
-
-	# get/create the Repository
-	my $parentRepositoryId = (defined $repositoryId ? $repositoryId : getOrCreateNode($parentRepositoryType, $parentRepositoryProperties));
-
-	# process all of the Changeset child records
-	for my $childChangesetLine (@childChangesetLineList)
-	{
-		chomp($childChangesetLine);
-
-		# parse Changeset data
-		my ($childChangesetType, $childChangesetProperties, $repositoryToChangesetProperties) = splitEdgeDefinition($childChangesetLine);
-
-		# get/create the Changeset
-		my $childChangesetId = getOrCreateNode($childChangesetType, $childChangesetProperties);
-
-		# create relationship between Repository and Changeset
-		createRelationship($parentRepositoryId, $childChangesetId, $repositoryToChangesetType, $repositoryToChangesetProperties);
-
-		my $developerName = $childChangesetProperties->{'developer'};
-		my $changesetName = $childChangesetProperties->{'name'};
-
-		importDeveloper($childChangesetId, $developerName);
-		importChangesetFiles($repositoryDirectory, $childChangesetId, $changesetName);
-	}		
-
 	importRepositoryModules($repositoryDirectory, $repositoryId);
+
+	# # load the Repository to Changeset data.
+	# my ($parentRepositoryLine, @childChangesetLineList) = loadData('repository-changesets.pl', $repositoryDirectory);
+
+	# # parse the Repository data
+	# my ($parentRepositoryType, $parentRepositoryProperties, $repositoryToChangesetType) = splitNodeDefinition($parentRepositoryLine);
+
+	# # get/create the Repository
+	# my $parentRepositoryId = (defined $repositoryId ? $repositoryId : getOrCreateNode($parentRepositoryType, $parentRepositoryProperties));
+
+	# # process all of the Changeset child records
+	# for my $childChangesetLine (@childChangesetLineList)
+	# {
+	# 	chomp($childChangesetLine);
+
+	# 	# parse Changeset data
+	# 	my ($childChangesetType, $childChangesetProperties, $repositoryToChangesetProperties) = splitEdgeDefinition($childChangesetLine);
+
+	# 	# get/create the Changeset
+	# 	my $childChangesetId = getOrCreateNode($childChangesetType, $childChangesetProperties);
+
+	# 	# create relationship between Repository and Changeset
+	# 	createRelationship($parentRepositoryId, $childChangesetId, $repositoryToChangesetType, $repositoryToChangesetProperties);
+
+	# 	my $developerName = $childChangesetProperties->{'developer'};
+	# 	my $changesetName = $childChangesetProperties->{'name'};
+
+	# 	importDeveloper($childChangesetId, $developerName);
+	# 	importChangesetFiles($repositoryDirectory, $childChangesetId, $changesetName);
+	# }
 }
 
 
@@ -245,7 +245,7 @@ sub importFileDependencies
 	print "INFO: Importing File dependencies: $filePath\n";
 
 	# load File to Dependency data
-	my ($parentFileLine, @childDependencyLineList) = loadData('class-references.pl', $filePath, "au.com.cgu");
+	my ($parentFileLine, @childDependencyLineList) = loadData('class-references.pl', $filePath, "au.id.mcmaster");
 
 	# parse the Dependency data
 	my ($parentFileType, $parentFileProperties, $fileToDependencyType) = splitNodeDefinition($parentFileLine);
@@ -263,6 +263,8 @@ sub importFileDependencies
 
 		# get/create the Dependency
 		my $childDependencyId = getOrCreateNode($childDependencyType, $childDependencyProperties, ('name','package'));
+
+		printf("Patent(%s : %d) -[%s]-> Child(%s : %d)\n", $parentFileType,$parentFileId,$fileToDependencyType,$childDependencyType,$childDependencyId);
 
 		# create relationship between File and Dependency
 		createRelationship($parentFileId, $childDependencyId, $fileToDependencyType, $fileToDependencyProperties);
@@ -314,5 +316,6 @@ sub importDeveloper
 	my %developerProperties = ('name'=>$developerName);
 	my $developerId = getOrCreateNode('Developer', \%developerProperties);
 	my %createdByProperties = ();
+
 	createRelationship($changesetId, $developerId, 'CREATED_BY', \%createdByProperties);
 }
