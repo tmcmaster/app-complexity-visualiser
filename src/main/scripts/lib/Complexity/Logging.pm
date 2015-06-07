@@ -21,7 +21,7 @@ sub createLogger
 	$LOGGER->level($logLevel);
 
 	# Define a layout
-	my $layout = Log::Log4perl::Layout::PatternLayout->new("[%-5p] %d  - %M(%L)[%P] %m%n");
+	my $layout = Log::Log4perl::Layout::PatternLayout->new("[%-5p] %d  - %F{1}(%L)[%P] %m%n");
 
 	# Define a file appender
 	my $file_appender = Log::Log4perl::Appender->new(
