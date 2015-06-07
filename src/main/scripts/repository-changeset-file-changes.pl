@@ -28,12 +28,12 @@ my $package;
 my $module;
 my $path;
 
-open(HG_DATA, "(cd $dir; hg log --stat) |");
 unless ($noHeaders eq "--no-headers")
 {
 	printf("repository,changeset,developer,file,changes,type,module,package,class,path\n");
 }
 
+open(HG_DATA, "(cd '${dir}'; hg log --stat) |");
 while(<HG_DATA>)
 {
 	chomp($_);
@@ -43,7 +43,7 @@ while(<HG_DATA>)
 	}
 	elsif($_=~m/^user:\s+(.*)/)
 	{
-		$developer=parseDeveloperName($1)
+		$developer = parseDeveloperName($1)
 	}
 	elsif($_=~m/\s+(.*?)\s+\|\s+([0-9]*?)\s.*/)
 	{
@@ -68,7 +68,8 @@ sub parseFileName
 
 	my ($file,$type,$module,$package,$class,$path) = ("","","","","",sprintf("%s/%s",$baseDir,$filePath));
 
-	if ($filePath =~ m/(.*?)\/src\/main\/java\/(.*)\/(.*?)\.java/)
+	print "[$filePath]\n";
+	if ($filePath =~ m/(.*)[\/]*src\/main\/java\/(.*)\/(.*?)\.java/)
 	{
 		$type = "Class";
 		$module = $1;

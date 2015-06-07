@@ -1,8 +1,33 @@
 package Complexity::Path;
 
+
+###################################################################################################################
+#
+#  Export Section
+#
+
+
 use Exporter qw(import);
 
 our @EXPORT = qw(getDirectoryPlusArgs getNameForPath splitPath generateChildPath);
+
+
+###################################################################################################################
+#
+#  Library Section
+#
+
+
+use lib './lib';
+use Complexity::Logging;
+
+my $LOGGER = getOrCreateLogger('lib-path');
+
+###################################################################################################################
+#
+#  Function Section
+#
+
 
 sub getDirectoryPlusArgs
 {
@@ -15,7 +40,7 @@ sub getDirectoryPlusArgs
 	}
 	else
 	{
-		$dir = $args[0];
+		$dir = "$args[0]";
 	}
 
 	if ($dir =~ m/\/$/)
@@ -23,12 +48,12 @@ sub getDirectoryPlusArgs
 		chop($dir);
 	}
 
-	unless (-d $dir)
+	unless (-d "$dir")
 	{
-		die "Given directory was invalid: $dir";
+		logdie "Given directory was invalid: $dir";
 	}
 
-	$dir = `(cd $dir; pwd)`;
+	$dir = `(cd "$dir"; pwd)`;
 	chomp($dir);
 
 	return ($dir, @ARGV[1..$#ARGV]);
