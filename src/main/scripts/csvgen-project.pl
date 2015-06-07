@@ -20,7 +20,7 @@ my $LOGGER = getOrCreateLogger('csvgen-project', $DEBUG);
 
 my @projectList = (
 	"Libraries,Tim McMaster,/cygdrive/c/Users/Tim/Workspace/Mercurial/Libraries",
-	"Libraries,Tim McMaster,/cygdrive/c/Users/Tim/Workspace/Mercurial/Apps"
+	"Apps,Tim McMaster,/cygdrive/c/Users/Tim/Workspace/Mercurial/Apps"
 );
 
 $LOGGER->debug('Creating Project list.');

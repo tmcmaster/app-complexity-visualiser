@@ -3,9 +3,9 @@
 use strict;
 
 use lib './lib';
-#use Complexity::Util;
 use Complexity::Logging;
 use Log::Log4perl::Level;
+use Complexity::Path;
 
 ###################################################################################################################
 #
@@ -33,9 +33,16 @@ unless (-f "$csvGenRepository") { die "Could not find script to generate project
 
 $LOGGER->debug('Creating CSV data for Project list.');
 
-my $count = 0;
-for my $line (`$csvGenRepository $projectPath`)
+my $fh;
+open($fh, "-|", "find $projectPath -name '.git' -o -name '.hg'");
+while (<$fh>)
 {
-	chomp($line);
+	my $path = $_;
+    chomp($path);
 
+    my ($baseDir, $relativePathDir, $name, $file) = splitPath($projectPath, $path);
+    my $type = ($file eq ".hg" ? "Mercurial" : ($file eq ".git" ? "Git" : ""));
+    printf("%s,%s,%s,%s\n", $projectName, $name, $type, $relativePathDir);
+    STDOUT->flush();
 }
+close($fh);

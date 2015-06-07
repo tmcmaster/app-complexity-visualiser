@@ -113,91 +113,125 @@ validateScripts($cvsGenProject, $cvsGenRepository);
 
 ###################################################################################################################
 #
-#  File Write Queue Section
-#
-#  Many threads can write to a queue, and one thread reads from the queue, and writes to a file.
-#
-
-my %writeQueues = (
-	'project' => new Thread::Queue(),
-	'repository' => new Thread::Queue()
-);
-
-
-# create all of the write to file threads.
-my @writeToFileThreads = ();
-for my $type (keys %writeQueues)
-{
-	printf("Creating Writer Thread(%s)\n",$type);
-	push(@writeToFileThreads, new Thread(sub {
-		$LOGGER->debug("Getting write queue($type)\n");
-		my $queue = $writeQueues{$type};
-		
-		my $file = sprintf("%s/%s.csv", $tmpDir, $type);
-		my $fh;
-		$LOGGER->debug("Opening output file($file)\n");
-		open($fh, $writeMode, $file);
-		my $line;
-		while ($line = $queue->dequeue())
-		{
-			$LOGGER->debug("----- [$line]\n");
-			print $fh $line . "\n";
-		}
-		$LOGGER->debug("Closing output file($file)\n");
-		close($fh);
-		$LOGGER->debug("Writer Thread($file) has finished.\n");
-	}));
-}
-
-
-
-###################################################################################################################
-#
 #  Main Section
 #
 
 $LOGGER->debug("So lets get started.");
 
-createProjectCSV();
+# create file write queues and monitor them
+my ($writeQueues, $writeToFileThreads) = createFileWriteQueues('project', 'repository');
+my $monitorQueueThread = monitorFileWriteQueue($writeQueues);
 
-# and a terminator to the end of each queue
-$writeQueues{$_}->enqueue(undef) for keys %writeQueues;
+csvGenericWalkerMultiThreaded(sprintf('./csvgen-project.pl'), $headers, 'project', 1, sub {
+	my ($projectName,$projectOwner,$projectPath) = @_;
+	
+	$LOGGER->debug("---------------ProcessingProject($projectName | $projectOwner | $projectPath)");
 
-# wait for all of the write threads to finish.
-$_->join() for @writeToFileThreads;
+	$writeQueues->{'project'}->enqueue(join(',', ($projectName,$projectOwner,$projectPath)));
 
+	# create the Project's Repositories
+	csvGenericWalkerMultiThreaded(sprintf('./csvgen-repository.pl %s %s', $projectName, $projectPath), $headers, 'repository', 3, sub {
+		my ($projectName,$repositoryName, $repositoryType, $repositoryPath) = @_;		
+		
+		$LOGGER->debug("ProcessingRepository($projectName | $repositoryName | $repositoryType | $repositoryPath)");
+
+		$writeQueues->{'repository'}->enqueue(join(',', ($projectName,$repositoryName,$repositoryType,$repositoryPath)));
+
+	});
+});
+
+# close the file write queues, and stop the queue monitoring
+closeFileWriteQueues($writeQueues, $writeToFileThreads);
+closeFileWriteMonitoring($monitorQueueThread);
 
 ###################################################################################################################
 #
 #  Function Section
 #
 
-
-sub createProjectCSV
+sub monitorFileWriteQueue
 {
-	$LOGGER->info("Creating Projects.");
+	my ($writeQueues, $interval) = @_;
 
-	# load projects
-	csvGenericWalkerMultiThreaded($cvsGenProject, $headers, 'project', 3, sub {
-		my ($projectName,$projectOwner,$projectPath) = @_;
-		
-		$LOGGER->debug("ProcessingProject($projectName | $projectOwner | $projectPath)");
+	# give the interval a default value
+	$interval = (defined $interval ? $interval : 1);
 
-		# create the Project's Repositories
-		createRepositoryCSV($projectName, $projectPath);
+	$LOGGER->debug(sprintf("---------------- Create a thread to monitor the write queues."));
+	return new Thread(sub {
+		# break variable for while loop
+		my $continue = 0;
+		# listen for signal to break while loop
+		$SIG{INT} = sub {$continue=1;};
+		# monitoring loop
+		while($continue == 0)
+		{
+			sleep $interval;
+			# print the size of all of the queues.
+			for my $type (keys %{$writeQueues})
+			{
+				my $size = $writeQueues->{$type}->pending();
+				$LOGGER->debug(sprintf("---------------- Queue(%s) size: %d", $type, $size));
+			}
+		}
 	});
 }
 
-sub createRepositoryCSV
+sub closeFileWriteMonitoring
 {
-	my ($projectName, $projectPath) = @_;
+	my ($thread) = @_;
 
-	$LOGGER->debug("Creating repositories for Project: ProjectName($projectName), ProjectPath($projectPath)");
+	$thread->kill('INT')->join();
+}
 
-	csvGenericWalkerMultiThreaded(sprintf($cvsGenRepository, $projectName, $projectPath), $headers, 'repository', 2, sub {
-		my ($projectName,$repositoryName, $repositoryType, $repositoryPath) = @_;		
-		$LOGGER->debug("ProcessingRepository($projectName | $repositoryName | $repositoryType | $repositoryPath)");
-	});
+sub closeFileWriteQueues
+{
+	my ($writeQueues, $writeToFileThreads) = @_;
+
+	# add a terminator to the end of each queue
+	$writeQueues->{$_}->enqueue(undef) for keys %{$writeQueues};
+
+	# wait for all of the write threads to finish.
+	$_->join() for @{$writeToFileThreads};
+}
+
+#
+#  Create write queues for each of the given types.
+#  Many threads can write to a queue, and one thread reads from the queue, and writes to a file.
+#
+sub createFileWriteQueues
+{
+	my (@typeList) = @_;
+
+	my %writeQueues = ();
+
+	$writeQueues{$_} = new Thread::Queue() for @typeList;
+
+	# create all of the write to file threads.
+	my @writeToFileThreads = ();
+	for my $type (@typeList)
+	{
+		printf("Creating Writer Thread(%s)\n",$type);
+		push(@writeToFileThreads, new Thread(sub {
+			$LOGGER->debug("Getting write queue($type)\n");
+			my $queue = $writeQueues{$type};
+			
+			my $file = sprintf("%s/%s.csv", $tmpDir, $type);
+			my $fh;
+			$LOGGER->debug("Opening output file($file)\n");
+			open($fh, $writeMode, $file);
+			my $line;
+			while ($line = $queue->dequeue())
+			{
+				$LOGGER->debug("----- [$line]\n");
+				print $fh $line . "\n";
+			}
+			$LOGGER->debug("Closing output file($file)\n");
+			close($fh);
+			$LOGGER->debug("Writer Thread($file) has finished.\n");
+		}));
+	}
+
+	return  (\%writeQueues, \@writeToFileThreads);
 }
 
 #
@@ -219,7 +253,7 @@ sub csvGenericWalkerMultiThreaded
 		while ($line = $processingQueue->dequeue())
 		{
 			my @values = split(',', $line);
-			$LOGGER->debug(sprintf("Queue(%d): Processing line: %s\n", $processingQueue->pending(), $line));
+			$LOGGER->debug(sprintf("Queue(%s) Pending(%d): Processing line: %s\n", $type, $processingQueue->pending(), $line));
 			$rowVisitor->(@values);
 		}
 		$LOGGER->debug("Processing completed.");
@@ -233,9 +267,6 @@ sub csvGenericWalkerMultiThreaded
 	my @threads;
 	push @threads, new Thread($processor) for 1..$noThreads;
 
-	# write queue, for persiting the CSV Table Data (ctd) into a file
-	my $writeQueue = $writeQueues{$type};
-	
 	# execute a command, and create a file handle to read the output from.
 	my $commandOutputPipe;
 	my $commandPID = open($commandOutputPipe, "$command $headers |");
@@ -245,22 +276,13 @@ sub csvGenericWalkerMultiThreaded
 	while (<$commandOutputPipe>)
 	{
 		$counter++;
-		
+
 		my $line = $_;
 		chomp($line);
-		# if headers is turned on and is a header line, process the header line
-		if ($headers eq "--headers" && $counter == 1)
-		{
-			# queue the header line to be writen to the output file
-			$writeQueue->enqueue($line);
-		}
-		else
-		{
-			sleep 1 while ($writeQueue->pending() > $queueSize || $processingQueue->pending() > $queueSize);
-			
-			# queue the header line to be writen to the output file
-			$writeQueue->enqueue($line);
 
+		# if headers is turned on and is a header line, process the header line
+		if ($headers eq "" || $counter > 1)
+		{
 			# add the line to the processing queue, to be handled by the child processing threads.
 			$processingQueue->enqueue($line);
 
@@ -276,43 +298,3 @@ sub csvGenericWalkerMultiThreaded
 	# wait for all of the child threads to finish.
 	$_->join() for @threads;
 }
-
-#
-# Execute a process that outputs CSV data, optionally with a header line, and walk the raulting data.
-# 
-# sub csvGenericWalker
-# {
-# 	my ($command, $headers, $rowVisitor, $headerVisitor) = @_;
-
-# 	$LOGGER->debug("About to walk output from command: $command $headers");
-
-# 	my $fh;
-# 	open($fh, "$command $headers |");
-
-# 	my @threads = ();
-# 	my $counter = 0;
-# 	while (<$fh>)
-# 	{	
-# 		$counter++;
-
-# 		# split the current line into values
-# 		my $line = $_;
-# 		chomp($line);
-# 		my @values = split(',', $line);
-# 		printf("[%s][%s][%s]\n", $values[0],$values[1],$values[2]);
-
-# 		if ($headers eq "--headers" && $counter == 1)
-# 		{
-# 			$headerVisitor->(@values);
-# 		}
-# 		else
-# 		{
-# 			push(@threads, threads->new($rowVisitor, @values));
-# 			#$rowVisitor->(@values);
-# 		}
-# 	}
-
-# 	$_->join foreach @threads;
-
-# 	close($fh);
-# }
