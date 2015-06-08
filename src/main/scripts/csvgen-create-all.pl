@@ -125,7 +125,7 @@ my $monitorQueueThread = monitorFileWriteQueue($writeQueues);
 csvGenericWalkerMultiThreaded(sprintf('./csvgen-project.pl'), $headers, 'project', 1, sub {
 	my ($projectName,$projectOwner,$projectPath) = @_;
 	
-	$LOGGER->debug("---------------ProcessingProject($projectName | $projectOwner | $projectPath)");
+	$LOGGER->debug("---- ProcessingProject($projectName | $projectOwner | $projectPath) ----");
 
 	$writeQueues->{'project'}->enqueue(join(',', ($projectName,$projectOwner,$projectPath)));
 
@@ -133,7 +133,7 @@ csvGenericWalkerMultiThreaded(sprintf('./csvgen-project.pl'), $headers, 'project
 	csvGenericWalkerMultiThreaded(sprintf('./csvgen-repository.pl %s %s', $projectName, $projectPath), $headers, 'repository', 3, sub {
 		my ($projectName,$repositoryName, $repositoryType, $repositoryPath) = @_;		
 		
-		$LOGGER->debug("ProcessingRepository($projectName | $repositoryName | $repositoryType | $repositoryPath)");
+		$LOGGER->debug("---- ProcessingRepository($projectName | $repositoryName | $repositoryType | $repositoryPath) ----");
 
 		$writeQueues->{'repository'}->enqueue(join(',', ($projectName,$repositoryName,$repositoryType,$repositoryPath)));
 

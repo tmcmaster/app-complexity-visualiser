@@ -18,13 +18,34 @@ unless (-f "./csvgen-create-all.pl") { die "This script needs to be run from the
 
 my $LOGGER = getOrCreateLogger('csvgen-project', $DEBUG);
 
-my @projectList = (
-	"Libraries,Tim McMaster,/cygdrive/c/Users/Tim/Workspace/Mercurial/Libraries",
-	"Apps,Tim McMaster,/cygdrive/c/Users/Tim/Workspace/Mercurial/Apps"
+my %projectMap = (
+	"Libraries" => "Tim McMaster,/cygdrive/c/Users/Tim/Workspace/Mercurial/Libraries",
+	"Apps" => "Tim McMaster,/cygdrive/c/Users/Tim/Workspace/Mercurial/Apps",
+	"Alchemy" => "GraphAlchemist,/cygdrive/c/Users/Tim/Workspace/Clone/Alchemy",
+	"betterFORM" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/betterFORM",
+	"CodeMirror" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/CodeMirror",
+	"eXist,TBD" => "/cygdrive/c/Users/Tim/Workspace/Clone/eXist",
+	"javaparser" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/javaparser",
+	"Jersey" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/Jersey",
+	"Jetty" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/Jetty",
+	"JointJS" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/JointJS",
+	"XMLEditor" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/jquery.xmleditor",
+	"Neo4j" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/Neo4j",
+	"XULRunner-Example" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/XULRunner-Examples"
 );
 
-$LOGGER->debug('Creating Project list.');
-for my $projectLine (@projectList)
+my @activeProjects = (
+	#"Apps", 
+	#"Libraries", 
+	"JointJS");
+
+$LOGGER->debug('Creating Project list. Looking for projects.');
+for my $projectName (@activeProjects)
 {
-	print "$projectLine\n";
+	$projectLine = sprintf("%s,%s", $projectName, $projectMap{$projectName});
+	my ($name, $owner, $path) = split(',', $projectLine);
+	if (-d "$path")
+	{
+		print "$projectLine\n";
+	}
 }
