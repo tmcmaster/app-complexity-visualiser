@@ -27,6 +27,7 @@
 #   module.csv         |  csvgen-module.pl [repository] [repositoryPath]               |  repository(p) : name(k) : path
 #   changeset.csv      |  csvgen-changeset.pl [repository] [repositoryPath]            |  repository(p) : name(k) : file : developer : changes : type : modeule : package : class : path
 #   module-module.csv  |  csvgen-module-module.pl [module] [modulePath]                |  name(p) : group(p) : name(k) : group(k)
+#   module-class.csv   |  csvgen-module-class.pl [module] [modulePath]                 |  name(p) : group(p) : name(k) : package(k)
 #   class-class.csv    |  csvgen-class-class.pl [module] [package] [class] [filePath]  |  module(p) : package(p) : class(p) : module(k) : package(k) : class(k)
 #
 #  Output Directory is $HOME/tmp
@@ -54,19 +55,22 @@
 
 use strict;
 
-# use Log::Log4perl qw(:easy);
-use Log::Log4perl;
-use Log::Log4perl::Layout;
-use Log::Log4perl::Level;
 use threads;
 use Thread;
 use Thread::Queue;
 
 use lib './lib';
-use Complexity::Logging;
-my $LOGGER = createLogger("csvgen-create-all", $DEBUG);
+use Complexity::Logger;
+my $LOGGER = new Logger('csvgen-create-all','DEBUG');
 use Complexity::Util;
 
+my $a = 3;
+my @aa = qw/1 5/;
+my @list = qw/a b c d e f/;
+print join(':', @list)."\n";
+my @choices = @list[@aa];
+print join(':', @choices)."\n";
+exit(0);
 
 ###################################################################################################################
 #
@@ -87,28 +91,90 @@ unless (-f "./csvgen-create-all.pl") { die "This script needs to be run from the
 # tmp directory
 my $tmpDir = sprintf("%s/tmp",$ENV{HOME});
 
+# dev mode (0 normal, 1 testing mode)
 my $devMode = 1;
 
 # if there are already data files, add to the end of them, otherwise add a header line to the top of the files.
-my $headers = ($devMode eq 1 ? "--headers" : (-f "$tmpDir/project.csv" ? "" : "--headers"));
-my $writeMode = ($headers eq "" ? ">>" : ">");
+my $writeMode = (-f "$tmpDir/project.csv" && $devMode eq 0 ? ">>" : ">");
 
-# CSV files
-my $projectCSV = sprintf("%s/project.csv", $tmpDir);
-my $repositoryCSV = sprintf("%s/repository.csv", $tmpDir);
 
-# CSV generation scripts
-my $cvsGenProject = "./csvgen-project.pl";
-my $cvsGenRepository = "./csvgen-repository.pl %s %s";  # [project] [projectPath]
+###################################################################################################################
+#
+#  Definition Section
+#
+
+
+# WIP: metadata for each of the types
+my %typeMap = (
+	'project' => {
+		'command' => "./csvgen-project.pl",
+		'header' => "name,owner,path",
+		'threads' => 2,
+		'children' => [
+			{
+				'type' => 'repository',
+				'params' => sub {return (@_)[0,2]}
+			}
+		]
+	},
+	'repository' => {
+		'command' => "./csvgen-repository.pl %s %s",
+		'header' => "project,name,type,path",
+		'threads' => 2,
+		'children' => [
+			{
+				'type' => 'changeset',
+				'params' => sub {return (@_)[1,3]}
+			},
+			{
+				'type' => 'module',
+				'params' => sub {return (@_)[1,3]}
+			}
+		]
+	},
+	'changeset' => {
+		'command' => "./csvgen-changeset.pl %s %s",
+		'header' => "repository,name,developer,file,changes,type,module,package,class,path",
+		'threads' => 2
+	},
+	'module' => {
+		'command' => "./csvgen-module.pl %s %s",
+		'header' => "repository,name,group,path",
+		'threads' => 2,
+		'children' => [
+			{
+				'type' => 'module-module',
+				'params' => sub {return (@_)[1,3]}
+			},
+			# {
+			# 	'type' => 'module-class',
+			# 	'params' => sub {return (@_)[1,3]}
+			# }
+		]
+	},
+	'module-module' => {
+		'command' => "./csvgen-module-module.pl %s %s",
+		'header' => "parent-name,parent-group,child-name,child-group,path",
+		'threads' => 2
+	},
+	# 'module-class' => {
+	# 	'command' => "./csvgen-module-class.pl %s %s",
+	# 	'header' => "module-name,module-group,name,package,path",
+	# 	'threads' => 2
+	# }
+);
+
 
 ###################################################################################################################
 #
 #  Validation Section
 #
 
-logdie("Could not find tmp directory: $tmpDir") unless (-d "$tmpDir");
 
-validateScripts($cvsGenProject, $cvsGenRepository);
+die "Could not find tmp directory: $tmpDir" unless (-d "$tmpDir");
+
+validateTypeMap(%typeMap);
+
 
 
 ###################################################################################################################
@@ -116,38 +182,107 @@ validateScripts($cvsGenProject, $cvsGenRepository);
 #  Main Section
 #
 
+
 $LOGGER->debug("So lets get started.");
 
 # create file write queues and monitor them
-my ($writeQueues, $writeToFileThreads) = createFileWriteQueues('project', 'repository');
-my $monitorQueueThread = monitorFileWriteQueue($writeQueues);
+my ($writeQueues, $writeToFileThreads) = createFileWriteQueues($writeMode, %typeMap);
+#my $monitorQueueThread = monitorFileWriteQueue($writeQueues);
 
-csvGenericWalkerMultiThreaded(sprintf('./csvgen-project.pl'), $headers, 'project', 1, sub {
-	my ($projectName,$projectOwner,$projectPath) = @_;
-	
-	$LOGGER->debug("---- ProcessingProject($projectName | $projectOwner | $projectPath) ----");
+#analiseProjectVersionOne();
+analiseProject(\%typeMap, 'project', ());
 
-	$writeQueues->{'project'}->enqueue(join(',', ($projectName,$projectOwner,$projectPath)));
-
-	# create the Project's Repositories
-	csvGenericWalkerMultiThreaded(sprintf('./csvgen-repository.pl %s %s', $projectName, $projectPath), $headers, 'repository', 3, sub {
-		my ($projectName,$repositoryName, $repositoryType, $repositoryPath) = @_;		
-		
-		$LOGGER->debug("---- ProcessingRepository($projectName | $repositoryName | $repositoryType | $repositoryPath) ----");
-
-		$writeQueues->{'repository'}->enqueue(join(',', ($projectName,$repositoryName,$repositoryType,$repositoryPath)));
-
-	});
-});
 
 # close the file write queues, and stop the queue monitoring
 closeFileWriteQueues($writeQueues, $writeToFileThreads);
-closeFileWriteMonitoring($monitorQueueThread);
+#closeFileWriteMonitoring($monitorQueueThread);
+
+#$_->join() for threads->list();
+
 
 ###################################################################################################################
 #
 #  Function Section
 #
+
+sub analiseProject
+{
+	my ($typeMap, $type, @params) = @_;
+
+	my $typeDef = $typeMap->{$type};
+	my $command = sprintf($typeDef->{'command'}, @params);
+	my $threads = $typeDef->{'threads'};
+
+	printf("Command(%s)[%d]\n", $command, $threads);
+
+	return unless ($type ==  'project');
+	csvGenericWalkerMultiThreaded($type, $command, $threads, sub {
+
+		$writeQueues->{$type}->enqueue(join(',', (@_)));
+
+		for my $child (@{$typeDef->{'children'}})
+		{
+			if (defined $child->{'type'})
+			{
+				my $childType = $child->{'type'};
+				print "ChildType($childType)\n";
+				my $paramFilter = $child->{'params'};
+				my @params = &$paramFilter(@_);
+				printf("ParamsList(%s)\n", join(':', @params));
+				analiseProject($typeMap, $childType, @params);
+			}
+		}
+	});
+}
+
+sub analiseProjectVersionOne
+{
+	csvGenericWalkerMultiThreaded('project', sprintf($typeMap{'project'}->{'command'}), 2, sub {
+		my ($projectName,$projectOwner,$projectPath) = @_;
+		
+		$LOGGER->debug("RowVisitor(%s): ($projectName | $projectOwner | $projectPath)", 'project');
+
+		$writeQueues->{'project'}->enqueue(join(',', ($projectName,$projectOwner,$projectPath)));
+
+		# create the Project's Repositories
+		csvGenericWalkerMultiThreaded('repository', sprintf($typeMap{'repository'}->{'command'}, $projectName, $projectPath), 2, sub {
+			my ($projectName,$repositoryName, $repositoryType, $repositoryPath) = @_;		
+			
+			$LOGGER->debug("RowVisitor(%s): ($projectName | $repositoryName | $repositoryType | $repositoryPath)", 'repository');
+
+			$writeQueues->{'repository'}->enqueue(join(',', ($projectName,$repositoryName,$repositoryType,$repositoryPath)));
+
+			# create Repository changesets
+		 	csvGenericWalkerMultiThreaded('changeset', sprintf($typeMap{'changeset'}->{'command'}, $repositoryName, $repositoryPath), 2, sub {
+				my ($repository,$changeset,$developer,$file,$changes,$type,$module,$package,$class,$path) = @_;		
+				
+				$LOGGER->debug("RowVisitor(%s): %s", 'changeset', join(' | ', @_));
+
+				$writeQueues->{'changeset'}->enqueue(join(',', ($repository,$changeset,$developer,$file,$changes,$type,$module,$package,$class,$path)));
+			});
+
+			# create Repository modules
+		 	csvGenericWalkerMultiThreaded('module', sprintf($typeMap{'module'}->{'command'}, $repositoryName, $repositoryPath), 2, sub {
+				my ($repository,$module,$group, $path) = @_;		
+				
+				$LOGGER->debug("RowVisitor(%s): %s", 'module', join(' | ', @_));
+
+				$writeQueues->{'module'}->enqueue(join(',', ($repository,$module,$group, $path)));
+			});
+		});
+	});	
+}
+
+sub validateTypeMap
+{
+	my (%typeMap) = @_;
+    for my $type (keys %typeMap)
+    {
+    	my $scriptString = $typeMap{$type}->{'command'};
+        my $script = (split(' ', $scriptString))[0];
+        die("Could not find script: $script") unless (-f "$script");
+    }
+}
 
 sub monitorFileWriteQueue
 {
@@ -200,35 +335,48 @@ sub closeFileWriteQueues
 #
 sub createFileWriteQueues
 {
-	my (@typeList) = @_;
+	my ($writeMode, %typeMap) = @_;
 
 	my %writeQueues = ();
 
-	$writeQueues{$_} = new Thread::Queue() for @typeList;
+	$writeQueues{$_} = new Thread::Queue() for keys %typeMap;
 
 	# create all of the write to file threads.
 	my @writeToFileThreads = ();
-	for my $type (@typeList)
+	for my $type (keys %typeMap)
 	{
 		printf("Creating Writer Thread(%s)\n",$type);
-		push(@writeToFileThreads, new Thread(sub {
-			$LOGGER->debug("Getting write queue($type)\n");
+
+		my $writerProcess = sub {
+			$LOGGER->debug("WriteProcessor($type): Getting write queue($type)\n");
 			my $queue = $writeQueues{$type};
 			
 			my $file = sprintf("%s/%s.csv", $tmpDir, $type);
 			my $fh;
-			$LOGGER->debug("Opening output file($file)\n");
+			$LOGGER->debug("WriteProcessor($type): Opening output file($file)\n");
 			open($fh, $writeMode, $file);
+			
+			# if in override, write header line
+			if ($writeMode eq ">")
+			{
+				my $header = $typeMap{$type}->{'header'};
+				print $fh $header . "\n";
+			}
+
+			# read from queue, and write into the file.
 			my $line;
 			while ($line = $queue->dequeue())
 			{
-				$LOGGER->debug("----- [$line]\n");
+				$LOGGER->debug("WriteProcessor($type): writing line: [$line]\n");
 				print $fh $line . "\n";
+				$fh->flush();
 			}
-			$LOGGER->debug("Closing output file($file)\n");
+			$LOGGER->debug("WriteProcessor($type): Closing output file($file)\n");
 			close($fh);
-			$LOGGER->debug("Writer Thread($file) has finished.\n");
-		}));
+			$LOGGER->debug("WriteProcessor($type): Writer Thread($file) has finished.\n");
+		};
+
+		push(@writeToFileThreads, new Thread($writerProcess));
 	}
 
 	return  (\%writeQueues, \@writeToFileThreads);
@@ -239,62 +387,68 @@ sub createFileWriteQueues
 #
 sub csvGenericWalkerMultiThreaded
 {
-	my ($command, $headers, $type, $noThreads, $rowVisitor) = @_;
+	my ($type, $command, $noThreads, $rowVisitor) = @_;
 
-	$LOGGER->debug("About to walk output from command: $command $headers");
+	$LOGGER->debug("CommandExecutor(%s): About to walk output from command: $command", $type);
 
 	# Queue for lines that need to be processed
 	my $processingQueue = new Thread::Queue();
 
 	# Processor for processing lines in the Processing Queue
-	my $processor = sub {
-		$LOGGER->debug("Starting to process $type records.");
+	my $rowProcessor = sub {
+		$LOGGER->debug("RowProcessor(%s): Starting to process records.", $type);
 		my $line;
 		while ($line = $processingQueue->dequeue())
 		{
 			my @values = split(',', $line);
-			$LOGGER->debug(sprintf("Queue(%s) Pending(%d): Processing line: %s\n", $type, $processingQueue->pending(), $line));
+			$LOGGER->debug("RowProcessor(%s): Processing line: %s", $type, $line);
 			$rowVisitor->(@values);
 		}
-		$LOGGER->debug("Processing completed.");
+		$LOGGER->debug("RowProcessor(%s): Processing completed.", $type);
 	};
 
-	# set the maximum size the Processing Queue can be. 
-	my $queueSize = 2;
-
 	# create the processing threads.
-	$LOGGER->debug("Creating threads.");
-	my @threads;
-	push @threads, new Thread($processor) for 1..$noThreads;
+	$LOGGER->debug("CommandExecutor(%s): Creating threads(%d) to process records.", $type, $noThreads);
+	my @threads = ();
+	push(@threads, new Thread($rowProcessor)) for 1..$noThreads;
+	$LOGGER->debug("CommandExecutor(%s): Created RowProcessor[%d])", $type, $_->tid()) for (@threads);
 
-	# execute a command, and create a file handle to read the output from.
-	my $commandOutputPipe;
-	my $commandPID = open($commandOutputPipe, "$command $headers |");
+	# processor for processing command output lines.
+	my $outputProcessor = sub {
+		$LOGGER->debug("OutputProcessor(%s): executing command: $command", $type);
+	
+		# execute a command, and create a file handle to read the output from.
+		my $commandOutputPipe;
+		my $commandPID = open($commandOutputPipe, "-|", "$command | head -5");
 
-	# read the command output line by line
-	my $counter = 0	;
-	while (<$commandOutputPipe>)
-	{
-		$counter++;
-
-		my $line = $_;
-		chomp($line);
-
-		# if headers is turned on and is a header line, process the header line
-		if ($headers eq "" || $counter > 1)
+		$LOGGER->debug("OutputProcessor(%s): processing output: $command", $type);
+		# read the command output line by line
+		my $counter = 0	;
+		while (<$commandOutputPipe>)
 		{
+			$counter++;
+
+			my $line = $_;
+			chomp($line);
+
 			# add the line to the processing queue, to be handled by the child processing threads.
 			$processingQueue->enqueue($line);
 
-			$LOGGER->debug(sprintf("Added line into the write and processing queues: %s\n", $line));
+			$LOGGER->debug("OutputProcessor(%s): Added line to queue: %s", $type, $line);
 		}
-	}
-	# close the file handle use to read from the command output.
-	close($commandOutputPipe);
+		# close the file handle use to read from the command output.
+		close($commandOutputPipe);
 
-	# inform each of the child threads that there us not going to be any more data.
-	$processingQueue->enqueue(undef) for 1..$noThreads;
+		# inform each of the child threads that there us not going to be any more data.
+		$processingQueue->enqueue(undef) for 1..$noThreads;
 
-	# wait for all of the child threads to finish.
-	$_->join() for @threads;
+		$LOGGER->debug("OutputProcessor(%s): Waiting for child threads(%d) to finish.", $type, $noThreads);
+
+		# wait for all of the child threads to finish.
+		$_->join() for @threads;
+	};
+
+	$LOGGER->debug("CommandExecutor(%s): Creating a thread to process output.", $type);
+	\&$outputProcessor();
+	#new Thread($outputProcessor)->join();
 }

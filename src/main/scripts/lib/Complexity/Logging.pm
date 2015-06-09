@@ -17,8 +17,8 @@ sub createLogger
 
 	$logLevel = (defined $logLevel ? $logLevel : $defaultLogLevel);
 
-	$LOGGER = Log::Log4perl->get_logger($loggerName);
-	$LOGGER->level($logLevel);
+	my $logger = Log::Log4perl->get_logger($loggerName);
+	$logger->level($logLevel);
 
 	# Define a layout
 	my $layout = Log::Log4perl::Layout::PatternLayout->new("[%-5p] %d  - %F{1}(%L)[%P] %m%n");
@@ -29,10 +29,11 @@ sub createLogger
 	                      name      => "filelog",
 	                      filename  => sprintf("/tmp/%s.log", $loggerName));
 
-	$LOGGER->add_appender($file_appender);
+	$logger->add_appender($file_appender);
 	$file_appender->layout($layout);
 
-	return $LOGGER;
+	$LOGGER = $logger;
+	return $logger;
 }
 
 sub getOrCreateLogger

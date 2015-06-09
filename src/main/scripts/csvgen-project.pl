@@ -31,12 +31,14 @@ my %projectMap = (
 	"JointJS" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/JointJS",
 	"XMLEditor" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/jquery.xmleditor",
 	"Neo4j" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/Neo4j",
-	"XULRunner-Example" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/XULRunner-Examples"
+	"XULRunner-Example" => "TBD,/cygdrive/c/Users/Tim/Workspace/Clone/XULRunner-Examples",
+	"GetStuffDone" => "TBD,/cygdrive/c/Users/Tim/Workspace/Mercurial/Apps/get-stuff-done"
 );
 
 my @activeProjects = (
 	#"Apps", 
-	#"Libraries", 
+	#"Libraries",
+	"GetStuffDone", 
 	"JointJS");
 
 $LOGGER->debug('Creating Project list. Looking for projects.');
