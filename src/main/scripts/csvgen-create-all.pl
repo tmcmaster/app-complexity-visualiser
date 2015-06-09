@@ -58,19 +58,14 @@ use strict;
 use threads;
 use Thread;
 use Thread::Queue;
+use Getopt::Long;
+use Pod::Usage;
 
 use lib './lib';
 use Complexity::Logger;
 my $LOGGER = new Logger('csvgen-create-all','DEBUG');
 use Complexity::Util;
 
-my $a = 3;
-my @aa = qw/1 5/;
-my @list = qw/a b c d e f/;
-print join(':', @list)."\n";
-my @choices = @list[@aa];
-print join(':', @choices)."\n";
-exit(0);
 
 ###################################################################################################################
 #
@@ -79,6 +74,41 @@ exit(0);
 
 
 unless (-f "./csvgen-create-all.pl") { die "This script needs to be run from the script directory."};
+
+my $type   = "project";
+my $override = 0;
+my $debugLevel = 'DEBUG';
+my $name;
+my $path;
+my $dryRun;
+my $help;
+my $man;
+
+GetOptions ("type=s" => \$type,
+            "name=s"   => \$name,
+            "path=s"  => \$path,
+            "debug-level" => \$debugLevel,
+            "dry-run" => \$dryRun,
+            "override" => \$override,
+            "help|?" => \$help,
+            "man" => \$man)
+  			or die("Error in command line arguments\n");
+
+pod2usage(1) if $help;
+pod2usage(-exitval => 0, -verbose => 2) if $man;
+
+# print the options that are going to be used.
+if ($dryRun)
+{
+	print "type        = $type\n";
+	print "name        = $name\n";
+	print "path        = $path\n";
+	print "debug-level = $debugLevel\n";
+	print "dry-run     = $dryRun\n";
+	print "override    = $override\n";
+	print "help        = $help\n";
+	exit(0);
+}
 
 
 ###################################################################################################################
@@ -113,7 +143,7 @@ my %typeMap = (
 		'children' => [
 			{
 				'type' => 'repository',
-				'params' => sub {return (@_)[0,2]}
+				'params' => [0,2]
 			}
 		]
 	},
@@ -124,11 +154,11 @@ my %typeMap = (
 		'children' => [
 			{
 				'type' => 'changeset',
-				'params' => sub {return (@_)[1,3]}
+				'params' => [1,3]
 			},
 			{
 				'type' => 'module',
-				'params' => sub {return (@_)[1,3]}
+				'params' => [1,3]
 			}
 		]
 	},
@@ -144,11 +174,11 @@ my %typeMap = (
 		'children' => [
 			{
 				'type' => 'module-module',
-				'params' => sub {return (@_)[1,3]}
+				'params' => [1,3]
 			},
 			# {
 			# 	'type' => 'module-class',
-			# 	'params' => sub {return (@_)[1,3]}
+			# 	'params' => [1,3]
 			# }
 		]
 	},
@@ -190,7 +220,7 @@ my ($writeQueues, $writeToFileThreads) = createFileWriteQueues($writeMode, %type
 #my $monitorQueueThread = monitorFileWriteQueue($writeQueues);
 
 #analiseProjectVersionOne();
-analiseProject(\%typeMap, 'project', ());
+analiseProject(\%typeMap, 'project');
 
 
 # close the file write queues, and stop the queue monitoring
@@ -225,10 +255,9 @@ sub analiseProject
 			if (defined $child->{'type'})
 			{
 				my $childType = $child->{'type'};
-				print "ChildType($childType)\n";
-				my $paramFilter = $child->{'params'};
-				my @params = &$paramFilter(@_);
-				printf("ParamsList(%s)\n", join(':', @params));
+				#print "ChildType($childType)\n";
+				my @params = @_[@{$child->{'params'}}];
+				#printf("ParamsList(%s)\n", join(':', @params));
 				analiseProject($typeMap, $childType, @params);
 			}
 		}
@@ -452,3 +481,43 @@ sub csvGenericWalkerMultiThreaded
 	\&$outputProcessor();
 	#new Thread($outputProcessor)->join();
 }
+
+###################################################################################################################
+#
+#  Manual Section
+#
+
+
+#-----------------------------------------------------------------
+#----------------  Documentation / Usage / Help ------------------
+=head1 NAME
+
+csvgen-create-all.pl - Project analiser.
+
+=head1 SYNOPSIS
+
+csvgen-create-all.pl [options]
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>  
+
+Print a brief help message and exits.
+
+=item B<--man>
+
+Prints the manual page and exits.
+
+=item B<--type>  
+
+The type of entity to analise.
+
+=back
+
+=head1 DESCRIPTION
+
+Recursively analise project information, and generate CSV relationship data files.
+
+=cut
