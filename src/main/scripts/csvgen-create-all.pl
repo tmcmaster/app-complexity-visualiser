@@ -63,9 +63,7 @@ use Pod::Usage;
 
 use lib './lib';
 use Complexity::Logger;
-my $LOGGER = new Logger('csvgen-create-all','DEBUG');
 use Complexity::Util;
-
 
 ###################################################################################################################
 #
@@ -75,9 +73,9 @@ use Complexity::Util;
 
 unless (-f "./csvgen-create-all.pl") { die "This script needs to be run from the script directory."};
 
-my $type   = "project";
+my $type     = "project";
 my $override = 0;
-my $debugLevel = 'DEBUG';
+my $logLevel = 'DEBUG';
 my $name;
 my $path;
 my $dryRun;
@@ -87,7 +85,7 @@ my $man;
 GetOptions ("type=s" => \$type,
             "name=s"   => \$name,
             "path=s"  => \$path,
-            "debug-level" => \$debugLevel,
+            "log-level" => \$logLevel,
             "dry-run" => \$dryRun,
             "override" => \$override,
             "help|?" => \$help,
@@ -103,7 +101,7 @@ if ($dryRun)
 	print "type        = $type\n";
 	print "name        = $name\n";
 	print "path        = $path\n";
-	print "debug-level = $debugLevel\n";
+	print "log-level = $logLevel\n";
 	print "dry-run     = $dryRun\n";
 	print "override    = $override\n";
 	print "help        = $help\n";
@@ -127,6 +125,8 @@ my $devMode = 1;
 # if there are already data files, add to the end of them, otherwise add a header line to the top of the files.
 my $writeMode = (-f "$tmpDir/project.csv" && $devMode eq 0 ? ">>" : ">");
 
+my $LOGGER = new Logger('csvgen-create-all','DEBUG');
+
 
 ###################################################################################################################
 #
@@ -138,6 +138,7 @@ my $writeMode = (-f "$tmpDir/project.csv" && $devMode eq 0 ? ">>" : ">");
 my %typeMap = (
 	'project' => {
 		'command' => "./csvgen-project.pl",
+		'options' => [],
 		'header' => "name,owner,path",
 		'threads' => 2,
 		'children' => [
@@ -149,6 +150,7 @@ my %typeMap = (
 	},
 	'repository' => {
 		'command' => "./csvgen-repository.pl %s %s",
+		'options' => [$name, $path],
 		'header' => "project,name,type,path",
 		'threads' => 2,
 		'children' => [
@@ -164,11 +166,13 @@ my %typeMap = (
 	},
 	'changeset' => {
 		'command' => "./csvgen-changeset.pl %s %s",
+		'options' => [$name, $path],
 		'header' => "repository,name,developer,file,changes,type,module,package,class,path",
 		'threads' => 2
 	},
 	'module' => {
 		'command' => "./csvgen-module.pl %s %s",
+		'options' => [$name, $path],
 		'header' => "repository,name,group,path",
 		'threads' => 2,
 		'children' => [
@@ -184,6 +188,7 @@ my %typeMap = (
 	},
 	'module-module' => {
 		'command' => "./csvgen-module-module.pl %s %s",
+		'options' => [$name, $path],
 		'header' => "parent-name,parent-group,child-name,child-group,path",
 		'threads' => 2
 	},
@@ -205,13 +210,14 @@ die "Could not find tmp directory: $tmpDir" unless (-d "$tmpDir");
 
 validateTypeMap(%typeMap);
 
-
-
 ###################################################################################################################
 #
 #  Main Section
 #
 
+my @args = ();
+push(@args, $name) if (defined $name);
+push(@args, $path) if (defined $path);
 
 $LOGGER->debug("So lets get started.");
 
@@ -220,7 +226,7 @@ my ($writeQueues, $writeToFileThreads) = createFileWriteQueues($writeMode, %type
 #my $monitorQueueThread = monitorFileWriteQueue($writeQueues);
 
 #analiseProjectVersionOne();
-analiseProject(\%typeMap, 'project');
+analiseProject(\%typeMap, $type, @{$typeMap{$type}->{'options'}});
 
 
 # close the file write queues, and stop the queue monitoring
@@ -312,6 +318,7 @@ sub validateTypeMap
         die("Could not find script: $script") unless (-f "$script");
     }
 }
+
 
 sub monitorFileWriteQueue
 {
@@ -513,6 +520,26 @@ Prints the manual page and exits.
 =item B<--type>  
 
 The type of entity to analise.
+
+=item B<--name>  
+
+The name of the entity to be analised.
+
+=item B<--path>  
+
+The path to the element to be analised.
+
+=item B<--log-level>  
+
+The log level to be used.
+
+=item B<--dry-run>  
+
+Don't do anything, just pring out the option values.
+
+=item B<--override>  
+
+Override the relationship CSV files.
 
 =back
 
