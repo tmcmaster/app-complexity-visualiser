@@ -79,6 +79,9 @@ my $logLevel = 'DEBUG';
 my $logIndent = 0;
 my $name;
 my $path;
+my $projectOwner;
+my $projectList;
+my $projectAll;
 my $dryRun = 0;
 my $monitorInterval = 0,
 my $help = 0;
@@ -87,6 +90,9 @@ my $man = 0;
 GetOptions ("type=s"           => \$type,
             "name=s"           => \$name,
             "path=s"           => \$path,
+            "owner=s"          => \$projectOwner,
+            "list"             => \$projectList,
+            "all"              => \$projectAll,
             "log-level:s"      => \$logLevel,
             "log-indent"       => \$logIndent,
             "dry-run"          => \$dryRun,
@@ -105,6 +111,9 @@ if ($dryRun)
 	print "type           = $type\n";
 	print "name           = $name\n";
 	print "path           = $path\n";
+	print "owner          = $projectOwner\n";
+	print "list           = $projectList\n";
+	print "all            = $projectAll\n";
 	print "log-level      = $logLevel\n";
 	print "log-indent     = $logIndent\n";
 	print "dry-run        = $dryRun\n";
@@ -114,6 +123,7 @@ if ($dryRun)
 	exit(0);
 }
 
+my $projectArguments = generateProjectArguments($type, $name, $projectOwner, $path, $projectList, $projectAll);
 
 ###################################################################################################################
 #
@@ -130,6 +140,7 @@ my $writeMode = ($override eq 1 ? ">" : ">>");
 
 my $LOGGER = new Logger('csvgen-create-all',$logLevel,$logIndent);
 
+#print "ProjectArguments($projectArguments)\n"; exit(0);
 
 ###################################################################################################################
 #
@@ -147,10 +158,19 @@ my $LOGGER = new Logger('csvgen-create-all',$logLevel,$logIndent);
 #
 my %typeMap = (
 	'project' => {
-		'command' => "./csvgen-project.pl",
-		'options' => [],
-		'header' => "name,owner,path",
+		'command' => "./csvgen-project.pl %s",
+		'options' => [$projectArguments],
 		'threads' => 2,
+		'header' => "name,owner,path",  # need to deprecate
+		'columns' => {
+			'headings' => ['name','owner','path'],
+			'parent-keys' => [],
+			'parent-props' => [],
+			'row-keys' => ['name'],
+			'row-props' => ['owner','path'],
+			'child-keys' => [],
+			'child-props' => []
+		},
 		'children' => [
 			{
 				'type' => 'repository',
@@ -161,8 +181,17 @@ my %typeMap = (
 	'repository' => {
 		'command' => "./csvgen-repository.pl %s %s",
 		'options' => [$name, $path],
-		'header' => "project,name,type,path",
 		'threads' => 2,
+		'header' => "project,name,type,path", # need to deprecate
+		'columns' => {
+			'headings' => ['project','name','type','path'],
+			'parent-keys' => ['project'],
+			'parent-props' => [],
+			'row-keys' => ['name'],
+			'row-props' => ['type','path'],
+			'child-keys' => [],
+			'child-props' => []
+		},
 		'children' => [
 			{
 				'type' => 'changeset',
@@ -177,14 +206,40 @@ my %typeMap = (
 	'changeset' => {
 		'command' => "./csvgen-changeset.pl %s %s",
 		'options' => [$name, $path],
-		'header' => "repository,name,developer,file,changes,type,module,package,class,path",
-		'threads' => 2
+		'threads' => 2,
+		'header' => "repository,name,developer,file,changes,type,module,package,class,path", # need to deprecate
+		'columns' => {
+			'headings' => ['repository','name','developer','file','changes','type','module','package','class','path'],
+			'parent-keys' => ['repository'],
+			'parent-props' => [],
+			'row-keys' => ['name'],
+			'row-props' => [],
+			'children' => [
+				{
+					'child-keys' => ['developer'],
+					'child-props' => []
+				},
+				{
+					'child-keys' => ['path'],
+					'child-props' => ['file','changes','type','module','package','class']
+				}
+			]
+		}
 	},
 	'module' => {
 		'command' => "./csvgen-module.pl %s %s",
 		'options' => [$name, $path],
-		'header' => "repository,name,group,path",
+		'header' => "repository,name,group,path", # need to deprecate
 		'threads' => 2,
+		'columns' => {
+			'headings' => ['repository','name','group','path'],
+			'parent-keys' => ['repository'],
+			'parent-props' => [],
+			'row-keys' => ['name','group'],
+			'row-props' => ['path'],
+			'child-keys' => [],
+			'child-props' => []
+		},
 		'children' => [
 			{
 				'type' => 'module-module',
@@ -199,8 +254,17 @@ my %typeMap = (
 	'module-module' => {
 		'command' => "./csvgen-module-module.pl %s %s",
 		'options' => [$name, $path],
-		'header' => "parent-name,parent-group,child-name,child-group,path",
-		'threads' => 2
+		'header' => "parent-name,parent-group,child-name,child-group,path", # need to deprecate
+		'threads' => 2,
+		'columns' => {
+			'headings' => [],
+			'parent-keys' => [],
+			'parent-props' => [],
+			'row-keys' => [],
+			'row-props' => [],
+			'child-keys' => [],
+			'child-props' => []
+		}		
 	},
 	# 'module-class' => {
 	# 	'command' => "./csvgen-module-class.pl %s %s",
@@ -324,6 +388,27 @@ sub analiseProjectVersionOne
 			});
 		});
 	});	
+}
+
+sub generateProjectArguments
+{
+	my ($type, $name, $owner, $path, $list, $all) = @_;
+
+	unless ($type eq "project")
+	{
+		return "";
+	}
+	else
+	{
+		my $args = "";
+		$args .= " --all" if (defined $all);
+		$args .= " --list" if (defined $list);
+		$args .= " --name $name" if (defined $name);
+		$args .= " --owner $owner" if (defined $owner);
+		$args .= " --path $path" if (defined $path);
+		$args =~ s/^ //;
+		return $args;
+	}
 }
 
 #
@@ -493,7 +578,7 @@ sub csvGenericWalkerMultiThreaded
 	
 		# execute a command, and create a file handle to read the output from.
 		my $commandOutputPipe;
-		my $commandPID = open($commandOutputPipe, "-|", "$command | head -5");
+		my $commandPID = open($commandOutputPipe, "-|", "$command");
 
 		$LOGGER->debug("OutputProcessor(%s): processing output: $command", $type);
 		# read the command output line by line
