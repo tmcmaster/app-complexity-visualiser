@@ -76,20 +76,24 @@ unless (-f "./csvgen-create-all.pl") { die "This script needs to be run from the
 my $type     = "project";
 my $override = 0;
 my $logLevel = 'DEBUG';
+my $logIndent = 0;
 my $name;
 my $path;
-my $dryRun;
-my $help;
-my $man;
+my $dryRun = 0;
+my $monitorInterval = 0,
+my $help = 0;
+my $man = 0;
 
-GetOptions ("type=s" => \$type,
-            "name=s"   => \$name,
-            "path=s"  => \$path,
-            "log-level" => \$logLevel,
-            "dry-run" => \$dryRun,
-            "override" => \$override,
-            "help|?" => \$help,
-            "man" => \$man)
+GetOptions ("type=s"           => \$type,
+            "name=s"           => \$name,
+            "path=s"           => \$path,
+            "log-level:s"      => \$logLevel,
+            "log-indent"       => \$logIndent,
+            "dry-run"          => \$dryRun,
+            "override"         => \$override,
+            "monitor-queues:i" => \$monitorInterval,
+            "help|?"           => \$help,
+            "man"              => \$man)
   			or die("Error in command line arguments\n");
 
 pod2usage(1) if $help;
@@ -98,13 +102,15 @@ pod2usage(-exitval => 0, -verbose => 2) if $man;
 # print the options that are going to be used.
 if ($dryRun)
 {
-	print "type        = $type\n";
-	print "name        = $name\n";
-	print "path        = $path\n";
-	print "log-level = $logLevel\n";
-	print "dry-run     = $dryRun\n";
-	print "override    = $override\n";
-	print "help        = $help\n";
+	print "type           = $type\n";
+	print "name           = $name\n";
+	print "path           = $path\n";
+	print "log-level      = $logLevel\n";
+	print "log-indent     = $logIndent\n";
+	print "dry-run        = $dryRun\n";
+	print "override       = $override\n";
+	print "monitor-queues = $monitorInterval\n";
+	print "help           = $help\n";
 	exit(0);
 }
 
@@ -119,13 +125,10 @@ if ($dryRun)
 # tmp directory
 my $tmpDir = sprintf("%s/tmp",$ENV{HOME});
 
-# dev mode (0 normal, 1 testing mode)
-my $devMode = 1;
-
 # if there are already data files, add to the end of them, otherwise add a header line to the top of the files.
-my $writeMode = (-f "$tmpDir/project.csv" && $devMode eq 0 ? ">>" : ">");
+my $writeMode = ($override eq 1 ? ">" : ">>");
 
-my $LOGGER = new Logger('csvgen-create-all','DEBUG');
+my $LOGGER = new Logger('csvgen-create-all',$logLevel,$logIndent);
 
 
 ###################################################################################################################
@@ -134,7 +137,14 @@ my $LOGGER = new Logger('csvgen-create-all','DEBUG');
 #
 
 
-# WIP: metadata for each of the types
+#
+# Metadata for each of the types.
+#
+# - The main key to the map is the entity type.
+# - Subkeys:
+#   - command: the command to run to find all of the entities of the particular type.
+#   - opyions:
+#
 my %typeMap = (
 	'project' => {
 		'command' => "./csvgen-project.pl",
@@ -215,25 +225,19 @@ validateTypeMap(%typeMap);
 #  Main Section
 #
 
-my @args = ();
-push(@args, $name) if (defined $name);
-push(@args, $path) if (defined $path);
-
-$LOGGER->debug("So lets get started.");
+$LOGGER->debug("Main(%s): So lets get started.", $type);
 
 # create file write queues and monitor them
-my ($writeQueues, $writeToFileThreads) = createFileWriteQueues($writeMode, %typeMap);
-#my $monitorQueueThread = monitorFileWriteQueue($writeQueues);
+my ($writeQueues, $writeToFileThreads, $monitorQueueThread) = createFileWriteQueues($writeMode, $monitorInterval, %typeMap);
 
 #analiseProjectVersionOne();
 analiseProject(\%typeMap, $type, @{$typeMap{$type}->{'options'}});
 
 
 # close the file write queues, and stop the queue monitoring
-closeFileWriteQueues($writeQueues, $writeToFileThreads);
-#closeFileWriteMonitoring($monitorQueueThread);
+closeFileWriteQueues($writeQueues, $writeToFileThreads, $monitorQueueThread);
 
-#$_->join() for threads->list();
+$LOGGER->debug("Main(%s): Job well done.", $type);
 
 
 ###################################################################################################################
@@ -241,6 +245,9 @@ closeFileWriteQueues($writeQueues, $writeToFileThreads);
 #  Function Section
 #
 
+#
+#  Analise a project from a given perspective.
+#
 sub analiseProject
 {
 	my ($typeMap, $type, @params) = @_;
@@ -249,27 +256,38 @@ sub analiseProject
 	my $command = sprintf($typeDef->{'command'}, @params);
 	my $threads = $typeDef->{'threads'};
 
-	printf("Command(%s)[%d]\n", $command, $threads);
+	$LOGGER->debug("RowVisitor(%s): About to process output: Command(%s) Threads(%d)", $type, $command, $threads);
 
 	return unless ($type ==  'project');
 	csvGenericWalkerMultiThreaded($type, $command, $threads, sub {
-
-		$writeQueues->{$type}->enqueue(join(',', (@_)));
+		
+		my $row = join(',', (@_));
+		$LOGGER->debug("RowVisitor(%s): Adding row to write queue: %s", $type, $row);
+		$writeQueues->{$type}->enqueue($row);
 
 		for my $child (@{$typeDef->{'children'}})
 		{
 			if (defined $child->{'type'})
 			{
+				# get child type
 				my $childType = $child->{'type'};
-				#print "ChildType($childType)\n";
+				# get the parameters the child type command needs
 				my @params = @_[@{$child->{'params'}}];
-				#printf("ParamsList(%s)\n", join(':', @params));
+
+				# analise the child type
+				$LOGGER->debug("RowVisitor(%s): About to analise ChildType(%s)", $type, $childType);		
 				analiseProject($typeMap, $childType, @params);
+				$LOGGER->debug("RowVisitor(%s): Finished analising ChildType(%s)", $type, $childType);		
 			}
 		}
+
+		$LOGGER->debug("RowVisitor(%s): Finished analising children.", $type);		
 	});
 }
 
+#
+#  DEPRECATED.
+# 
 sub analiseProjectVersionOne
 {
 	csvGenericWalkerMultiThreaded('project', sprintf($typeMap{'project'}->{'command'}), 2, sub {
@@ -308,6 +326,9 @@ sub analiseProjectVersionOne
 	});	
 }
 
+#
+#  Validate the Type Definition map, to make sure all of the configured commands are available.
+#
 sub validateTypeMap
 {
 	my (%typeMap) = @_;
@@ -319,7 +340,22 @@ sub validateTypeMap
     }
 }
 
+#
+#  create a thread, and register it's log indent level.
+#
+sub createThread
+{
+	my ($function) = @_;
 
+	my $parentId = threads->tid();
+	my $thread = new Thread($function);
+	my $childId = $thread->tid();
+	$LOGGER->setThreadIndent($parentId, $childId);
+	return $thread;
+}
+#
+#  Monitor the write queues for each type, to make sure the file writes are fast enough.
+#
 sub monitorFileWriteQueue
 {
 	my ($writeQueues, $interval) = @_;
@@ -328,7 +364,7 @@ sub monitorFileWriteQueue
 	$interval = (defined $interval ? $interval : 1);
 
 	$LOGGER->debug(sprintf("---------------- Create a thread to monitor the write queues."));
-	return new Thread(sub {
+	return createThread(sub {
 		# break variable for while loop
 		my $continue = 0;
 		# listen for signal to break while loop
@@ -347,22 +383,20 @@ sub monitorFileWriteQueue
 	});
 }
 
-sub closeFileWriteMonitoring
-{
-	my ($thread) = @_;
-
-	$thread->kill('INT')->join();
-}
-
+#
+#  #hutdown all of the write and monitoring threads, once all of the data has been processed.
+#
 sub closeFileWriteQueues
 {
-	my ($writeQueues, $writeToFileThreads) = @_;
+	my ($writeQueues, $writeToFileThreads, $monitorQueueThread) = @_;
 
 	# add a terminator to the end of each queue
 	$writeQueues->{$_}->enqueue(undef) for keys %{$writeQueues};
 
 	# wait for all of the write threads to finish.
 	$_->join() for @{$writeToFileThreads};
+
+	$monitorQueueThread->kill('INT')->join() if (defined $monitorQueueThread);
 }
 
 #
@@ -371,18 +405,19 @@ sub closeFileWriteQueues
 #
 sub createFileWriteQueues
 {
-	my ($writeMode, %typeMap) = @_;
+	my ($writeMode, $monitorInterval, %typeMap) = @_;
 
 	my %writeQueues = ();
 
 	$writeQueues{$_} = new Thread::Queue() for keys %typeMap;
 
+	my $monitorQueueThread;
+	$monitorQueueThread = monitorFileWriteQueue($writeQueues) if ($monitorInterval > 0);
+
 	# create all of the write to file threads.
 	my @writeToFileThreads = ();
 	for my $type (keys %typeMap)
 	{
-		printf("Creating Writer Thread(%s)\n",$type);
-
 		my $writerProcess = sub {
 			$LOGGER->debug("WriteProcessor($type): Getting write queue($type)\n");
 			my $queue = $writeQueues{$type};
@@ -412,14 +447,17 @@ sub createFileWriteQueues
 			$LOGGER->debug("WriteProcessor($type): Writer Thread($file) has finished.\n");
 		};
 
-		push(@writeToFileThreads, new Thread($writerProcess));
+		$LOGGER->debug("WriteProcessor(): Creating Writer Thread(%s)",$type);
+
+		push(@writeToFileThreads, createThread($writerProcess));
 	}
 
-	return  (\%writeQueues, \@writeToFileThreads);
+	return  (\%writeQueues, \@writeToFileThreads, $monitorQueueThread);
 }
 
 #
-# Read in and process all of the lines from a given command.
+# Read and process all of the lines from a given command.
+# this will spawn a given number of threads to call a given RowVisitor, that is used to process the rows.
 #
 sub csvGenericWalkerMultiThreaded
 {
@@ -446,8 +484,8 @@ sub csvGenericWalkerMultiThreaded
 	# create the processing threads.
 	$LOGGER->debug("CommandExecutor(%s): Creating threads(%d) to process records.", $type, $noThreads);
 	my @threads = ();
-	push(@threads, new Thread($rowProcessor)) for 1..$noThreads;
-	$LOGGER->debug("CommandExecutor(%s): Created RowProcessor[%d])", $type, $_->tid()) for (@threads);
+	push(@threads, createThread($rowProcessor)) for 1..$noThreads;
+	#$LOGGER->debug("CommandExecutor(%s): Created RowProcessor[%d])", $type, $_->tid()) for (@threads);
 
 	# processor for processing command output lines.
 	my $outputProcessor = sub {
@@ -484,10 +522,12 @@ sub csvGenericWalkerMultiThreaded
 		$_->join() for @threads;
 	};
 
+	# WIP: the following was used to test backgrounding all threads. 
 	$LOGGER->debug("CommandExecutor(%s): Creating a thread to process output.", $type);
 	\&$outputProcessor();
-	#new Thread($outputProcessor)->join();
+	#createThread($outputProcessor)->join();
 }
+
 
 ###################################################################################################################
 #
