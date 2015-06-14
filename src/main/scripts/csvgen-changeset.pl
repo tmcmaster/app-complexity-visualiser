@@ -39,7 +39,7 @@ my $headers = ($#ARGV > 1 ? $ARGV[2] : "");
 
 if ($headers eq "--headers")
 {
-	printf("repository,changeset,developer,file,changes,type,module,package,class,path\n");
+	printf("repository,changeset,date,developer,file,changes,type,module,package,class,path\n");
 }
 
 if (-d "$repositoryPath/.hg")
@@ -94,7 +94,7 @@ sub getChangesetDataGit
 		{
 			if ($changeset ne "")
 			{
-				printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$developer,$file,$changes,$type,$module,$package,$class,$path);
+				printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$date,$developer,$file,$changes,$type,$module,$package,$class,$path);
 			}
 			$changeset = $1;
 			$developer = parseDeveloperName($2);
@@ -108,7 +108,7 @@ sub getChangesetDataGit
 	}
 	if ($changeset ne "")
 	{
-		printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$developer,$file,$changes,$type,$module,$package,$class,$path);
+		printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$date,$developer,$file,$changes,$type,$module,$package,$class,$path);
 	}
 	close(HG_DATA);	
 }
@@ -120,6 +120,7 @@ sub getChangesetDataHG
 	my $changeset;
 	my $developer;
 	my $changeset;
+	my $date;
 	my $changes;
 	my $file;
 	my $type;
@@ -128,24 +129,22 @@ sub getChangesetDataHG
 	my $module;
 	my $path;
 
-	open(HG_DATA, "(cd '${repositoryPath}'; hg log --stat) |");
+	open(HG_DATA, "(cd '${repositoryPath}'; hg log --stat --template 'Changeset|{date|shortdate}|{node|short}|{branch}|{author}\n') |");
 	while(<HG_DATA>)
 	{
 		chomp($_);
-		if($_=~m/^changeset:.*:(.*)/)
+		if($_=~m/^Changeset\|(.*)\|(.*)\|(.*)\|(.*)/)
 		{
-			$changeset=$1
-		}
-		elsif($_=~m/^user:\s+(.*)/)
-		{
-			$developer = parseDeveloperName($1)
+			$date = $1;
+			$changeset = $2;
+			$developer = parseDeveloperName($4);
 		}
 		elsif($_=~m/\s+(.*?)\s+\|\s+([0-9]*?)\s.*/)
 		{
 			($file,$type,$module,$package,$class,$path) = parseFileName($dir, $1);
-
 			$changes=$2;
-			printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$developer,$file,$changes,$type,$module,$package,$class,$path);
+			$package =~ tr/\//\./;
+			printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$date,$developer,$file,$changes,$type,$module,$package,$class,$path);
 		}
 	}
 	close(HG_DATA);	
