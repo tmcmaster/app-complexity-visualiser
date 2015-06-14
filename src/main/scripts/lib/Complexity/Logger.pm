@@ -20,10 +20,10 @@ use threads;
 #
 
 
-my $APPENDER;
-
 my %threadIndent: shared = (0=>"");
 my $logIndent : shared;
+my $APPENDER;
+
 
 ###################################################################################################################
 #
@@ -40,6 +40,7 @@ sub new
     my $loggerName = shift;
     my $loggerLevel = shift;
     $logIndent = shift;
+    $threadIndent{'INDENT'} = $logIndent;
 
  	# create the logger
 	my $logger = Log::Log4perl->get_logger($loggerName);
@@ -78,7 +79,8 @@ sub new
  
     bless $self, $class;
 
-   	$self->info("Created logger: Name(%s), Level(%s)", $loggerName, $loggerLevel);
+   	printf("Created logger: Name(%s), Level(%s), Indent(%d)\n", $loggerName, $loggerLevel, $logIndent);
+   	$self->info("Created logger: Name(%s), Level(%s), Indent(%d)", $loggerName, $loggerLevel, $logIndent);
 
     return $self;
 }

@@ -21,7 +21,7 @@ our @EXPORT = qw(parseDeveloperName loadData validateScripts);
 use lib './lib';
 use Complexity::Logging;
 
-my $LOGGER = getOrCreateLogger('lib-util');
+#my $LOGGER = getOrCreateLogger('lib-util');
 
 
 ###################################################################################################################

@@ -64,6 +64,9 @@ use Pod::Usage;
 use lib './lib';
 use Complexity::Logger;
 use Complexity::Util;
+use Complexity::Import;
+use Complexity::Analyse;
+
 
 ###################################################################################################################
 #
@@ -82,6 +85,11 @@ my $path;
 my $projectOwner;
 my $projectList;
 my $projectAll;
+my $outputDir;
+my $genData = 0;
+my $genCypher;
+my $genAll = 0;
+my $import = 0;
 my $dryRun = 0;
 my $monitorInterval = 0,
 my $help = 0;
@@ -93,37 +101,47 @@ GetOptions ("type=s"           => \$type,
             "owner=s"          => \$projectOwner,
             "list"             => \$projectList,
             "all"              => \$projectAll,
+            "output-dir:s"     => \$outputDir,
             "log-level:s"      => \$logLevel,
             "log-indent"       => \$logIndent,
             "dry-run"          => \$dryRun,
             "override"         => \$override,
+            "gen-cypher"       => \$genCypher,
+            "gen-data"         => \$genData,
+            "gen-all"          => \$genAll,
+            "import"           => \$import,
             "monitor-queues:i" => \$monitorInterval,
             "help|?"           => \$help,
             "man"              => \$man)
   			or die("Error in command line arguments\n");
 
-pod2usage(1) if $help;
-pod2usage(-exitval => 0, -verbose => 2) if $man;
+pod2usage(1) if $help && !$dryRun;
+pod2usage(-exitval => 0, -verbose => 2) if $man && !$dryRun;
 
 # print the options that are going to be used.
 if ($dryRun)
 {
-	print "type           = $type\n";
-	print "name           = $name\n";
-	print "path           = $path\n";
-	print "owner          = $projectOwner\n";
-	print "list           = $projectList\n";
-	print "all            = $projectAll\n";
-	print "log-level      = $logLevel\n";
-	print "log-indent     = $logIndent\n";
-	print "dry-run        = $dryRun\n";
-	print "override       = $override\n";
-	print "monitor-queues = $monitorInterval\n";
-	print "help           = $help\n";
-	exit(0);
+	print "\nSelected Options:\n";
+	print "--------------------------------------------------------\n\n";
+	print "  type           = $type\n";
+	print "  name           = $name\n";
+	print "  path           = $path\n";
+	print "  owner          = $projectOwner\n";
+	print "  list           = $projectList\n";
+	print "  all            = $projectAll\n";
+	print "  output-dir     = $outputDir\n";
+	print "  log-level      = $logLevel\n";
+	print "  log-indent     = $logIndent\n";
+	print "  dry-run        = $dryRun\n";
+	print "  override       = $override\n";
+	print "  gen-cypher     = $genCypher\n";
+	print "  gen-data       = $genData\n";
+	print "  gen-all        = $genAll\n";
+	print "  import         = $import\n";
+	print "  monitor-queues = $monitorInterval\n";
+	print "  help           = $help\n";
+	print "  man            = $man\n";
 }
-
-my $projectArguments = generateProjectArguments($type, $name, $projectOwner, $path, $projectList, $projectAll);
 
 ###################################################################################################################
 #
@@ -132,8 +150,12 @@ my $projectArguments = generateProjectArguments($type, $name, $projectOwner, $pa
 
 # create a logger to be used by this script, and any include libraries (part of this project only)
 
+my @defaultOutputDirectories = ("/cygdrive/c/Users/Tim/Workspace/Neo4j/scratch", "/cygdrive/d/work/neo4j/scratch");
+
+# project arguments
+my $projectArguments = generateProjectArguments($type, $name, $projectOwner, $path, $projectList, $projectAll);
 # tmp directory
-my $tmpDir = sprintf("%s/tmp",$ENV{HOME});
+my $tmpDir = determineOutputDirectory($outputDir, @defaultOutputDirectories);
 
 # if there are already data files, add to the end of them, otherwise add a header line to the top of the files.
 my $writeMode = ($override eq 1 ? ">" : ">>");
@@ -147,6 +169,7 @@ my $LOGGER = new Logger('csvgen-create-all',$logLevel,$logIndent);
 #  Definition Section
 #
 
+print "projectArguments = [$projectArguments]\n";
 
 #
 # Metadata for each of the types.
@@ -158,18 +181,15 @@ my $LOGGER = new Logger('csvgen-create-all',$logLevel,$logIndent);
 #
 my %typeMap = (
 	'project' => {
+		'alias' => "p",
 		'command' => "./csvgen-project.pl %s",
 		'options' => [$projectArguments],
 		'threads' => 2,
 		'header' => "name,owner,path",  # need to deprecate
 		'columns' => {
 			'headings' => ['name','owner','path'],
-			'parent-keys' => [],
-			'parent-props' => [],
-			'row-keys' => ['name'],
-			'row-props' => ['owner','path'],
-			'child-keys' => [],
-			'child-props' => []
+			'keys' => ['name'],
+			'props' => ['owner','path']
 		},
 		'children' => [
 			{
@@ -179,18 +199,23 @@ my %typeMap = (
 		]
 	},
 	'repository' => {
+		'alias' => "r",
 		'command' => "./csvgen-repository.pl %s %s",
 		'options' => [$name, $path],
 		'threads' => 2,
 		'header' => "project,name,type,path", # need to deprecate
 		'columns' => {
 			'headings' => ['project','name','type','path'],
-			'parent-keys' => ['project'],
-			'parent-props' => [],
-			'row-keys' => ['name'],
-			'row-props' => ['type','path'],
-			'child-keys' => [],
-			'child-props' => []
+			'keys' => ['name'],
+			'props' => ['type','path'],
+			'parent' => {
+				'keys' => ['name:project'],
+				'props' => [],
+				'relationship' => {
+					'parent-row' => "CONTAINS",
+					'row-parent' => "BELONGS_TO"
+				}				
+			}
 		},
 		'children' => [
 			{
@@ -204,41 +229,72 @@ my %typeMap = (
 		]
 	},
 	'changeset' => {
+		'alias' => "c",
 		'command' => "./csvgen-changeset.pl %s %s",
 		'options' => [$name, $path],
 		'threads' => 2,
 		'header' => "repository,name,developer,file,changes,type,module,package,class,path", # need to deprecate
 		'columns' => {
 			'headings' => ['repository','name','developer','file','changes','type','module','package','class','path'],
-			'parent-keys' => ['repository'],
-			'parent-props' => [],
-			'row-keys' => ['name'],
-			'row-props' => [],
+			'keys' => ['name'],
+			#'props' => ['developer','file','changes','type','module','package','class','path'],
+			'props' => ['developer','file','changes','type','path'],
+			'parent' => {
+				'type' => 'repository',
+				'keys' => ['name:repository'],
+				'props' => [],
+				'relationship' => {
+					'parent-row' => "CONTAINS",
+					'row-parent' => "BELONGS_TO"
+				}				
+			},
 			'children' => [
 				{
-					'child-keys' => ['developer'],
-					'child-props' => []
+					'type' => "developer",
+					'keys' => ['name:developer'],
+					'props' => [],
+					'relationships' => {
+						'row-child' => "CREATED_BY",
+						'child-row' => "CREATED"
+					}
 				},
 				{
-					'child-keys' => ['path'],
-					'child-props' => ['file','changes','type','module','package','class']
+					'type' => "file",
+					'keys' => ['path'],
+					'props' => ['name:file','changes','type','name:module','package','class'],
+					'relationships' => {
+						'row-child' => "CHANGED",
+						'child-row' => "CHANGED_BY"
+					}
 				}
 			]
 		}
 	},
+	'developer' => {
+		'alias' => "d",
+	},
+	'file' => {
+		'alias' => "f",
+	},
 	'module' => {
+		'alias' => "m",
 		'command' => "./csvgen-module.pl %s %s",
 		'options' => [$name, $path],
 		'header' => "repository,name,group,path", # need to deprecate
 		'threads' => 2,
 		'columns' => {
 			'headings' => ['repository','name','group','path'],
-			'parent-keys' => ['repository'],
-			'parent-props' => [],
-			'row-keys' => ['name','group'],
-			'row-props' => ['path'],
-			'child-keys' => [],
-			'child-props' => []
+			'keys' => ['name','group'],
+			'props' => ['path'],
+			'parent' => {
+				'type' => "repository",
+				'keys' => ['name:repository'],
+				'props' => [],
+				'relationships' => {
+					'parent-row' => "CONTAINS",
+					'row-parent' => "BELOMGS_TO",
+				}
+			}
 		},
 		'children' => [
 			{
@@ -257,19 +313,38 @@ my %typeMap = (
 		'header' => "parent-name,parent-group,child-name,child-group,path", # need to deprecate
 		'threads' => 2,
 		'columns' => {
-			'headings' => [],
-			'parent-keys' => [],
-			'parent-props' => [],
-			'row-keys' => [],
-			'row-props' => [],
-			'child-keys' => [],
-			'child-props' => []
-		}		
+			'headings' => ['parent-name','parent-group','name','group','path'],
+			'keys' => ['name','group'],
+			'props' => ['path'],
+			'parent' => {
+				'type' => "module",
+				'keys' => ['name:parent-name','group:parent-group'],
+				'props' => [],
+				'relationships' => {
+					'parent-row' => "REFERENCES",
+					'row-parent' => "REFERENCED_BY",
+				}
+			}
+		},
 	},
 	# 'module-class' => {
 	# 	'command' => "./csvgen-module-class.pl %s %s",
 	# 	'header' => "module-name,module-group,name,package,path",
-	# 	'threads' => 2
+	# 	'threads' => 2,
+	# 	'columns' => {
+	# 		'headings' => ['module-name','module-group','name','package','path'],
+	# 		'keys' => ['path'],
+	# 		'props' => ['name', 'package'],
+	# 		'parent' => {
+	# 			'type' => "module",
+	# 			'keys' => ['name:module-name','group:module-group'],
+	# 			'props' => [],
+	# 			'relationships' => {
+	# 				'parent-row' => "CONTAINS",
+	# 				'row-parent' => "BELOMGS_TO",
+	# 			}
+	# 		}
+	# 	},
 	# }
 );
 
@@ -279,10 +354,22 @@ my %typeMap = (
 #  Validation Section
 #
 
+# print calculated options if in dry t
+if ($dryRun)
+{
+	print "  tmpDir         = $tmpDir\n";
+	print "  progArgs       = $projectArguments\n";
+	print "  writeMode      = $writeMode\n";
+	print "\n--------------------------------------------------------\n\n";
+}
 
-die "Could not find tmp directory: $tmpDir" unless (-d "$tmpDir");
+die "Could not determine the output directory." unless (defined $tmpDir);
+die "The select output directory was not there." unless (-d "$tmpDir");
 
 validateTypeMap(%typeMap);
+
+# exit if in dry run mode.
+exit(0) if ($dryRun);
 
 ###################################################################################################################
 #
@@ -291,15 +378,22 @@ validateTypeMap(%typeMap);
 
 $LOGGER->debug("Main(%s): So lets get started.", $type);
 
-# create file write queues and monitor them
-my ($writeQueues, $writeToFileThreads, $monitorQueueThread) = createFileWriteQueues($writeMode, $monitorInterval, %typeMap);
+if ($genCypher || $genAll)
+{
+	generateCypherImportFiles(\%typeMap, $tmpDir, 'project');
+}
 
-#analiseProjectVersionOne();
-analiseProject(\%typeMap, $type, @{$typeMap{$type}->{'options'}});
+if ($genData || $genAll)
+{
+	# create file write queues and monitor them
+	my ($writeQueues, $writeToFileThreads, $monitorQueueThread) = createFileWriteQueues($writeMode, $monitorInterval, $tmpDir, %typeMap);
 
+	#analiseProjectVersionOne($writeQueues);
+	analiseProject(\%typeMap, $type, $writeQueues, @{$typeMap{$type}->{'options'}});
 
-# close the file write queues, and stop the queue monitoring
-closeFileWriteQueues($writeQueues, $writeToFileThreads, $monitorQueueThread);
+	# close the file write queues, and stop the queue monitoring
+	closeFileWriteQueues($writeQueues, $writeToFileThreads, $monitorQueueThread);
+}
 
 $LOGGER->debug("Main(%s): Job well done.", $type);
 
@@ -309,86 +403,6 @@ $LOGGER->debug("Main(%s): Job well done.", $type);
 #  Function Section
 #
 
-#
-#  Analise a project from a given perspective.
-#
-sub analiseProject
-{
-	my ($typeMap, $type, @params) = @_;
-
-	my $typeDef = $typeMap->{$type};
-	my $command = sprintf($typeDef->{'command'}, @params);
-	my $threads = $typeDef->{'threads'};
-
-	$LOGGER->debug("RowVisitor(%s): About to process output: Command(%s) Threads(%d)", $type, $command, $threads);
-
-	return unless ($type ==  'project');
-	csvGenericWalkerMultiThreaded($type, $command, $threads, sub {
-		
-		my $row = join(',', (@_));
-		$LOGGER->debug("RowVisitor(%s): Adding row to write queue: %s", $type, $row);
-		$writeQueues->{$type}->enqueue($row);
-
-		for my $child (@{$typeDef->{'children'}})
-		{
-			if (defined $child->{'type'})
-			{
-				# get child type
-				my $childType = $child->{'type'};
-				# get the parameters the child type command needs
-				my @params = @_[@{$child->{'params'}}];
-
-				# analise the child type
-				$LOGGER->debug("RowVisitor(%s): About to analise ChildType(%s)", $type, $childType);		
-				analiseProject($typeMap, $childType, @params);
-				$LOGGER->debug("RowVisitor(%s): Finished analising ChildType(%s)", $type, $childType);		
-			}
-		}
-
-		$LOGGER->debug("RowVisitor(%s): Finished analising children.", $type);		
-	});
-}
-
-#
-#  DEPRECATED.
-# 
-sub analiseProjectVersionOne
-{
-	csvGenericWalkerMultiThreaded('project', sprintf($typeMap{'project'}->{'command'}), 2, sub {
-		my ($projectName,$projectOwner,$projectPath) = @_;
-		
-		$LOGGER->debug("RowVisitor(%s): ($projectName | $projectOwner | $projectPath)", 'project');
-
-		$writeQueues->{'project'}->enqueue(join(',', ($projectName,$projectOwner,$projectPath)));
-
-		# create the Project's Repositories
-		csvGenericWalkerMultiThreaded('repository', sprintf($typeMap{'repository'}->{'command'}, $projectName, $projectPath), 2, sub {
-			my ($projectName,$repositoryName, $repositoryType, $repositoryPath) = @_;		
-			
-			$LOGGER->debug("RowVisitor(%s): ($projectName | $repositoryName | $repositoryType | $repositoryPath)", 'repository');
-
-			$writeQueues->{'repository'}->enqueue(join(',', ($projectName,$repositoryName,$repositoryType,$repositoryPath)));
-
-			# create Repository changesets
-		 	csvGenericWalkerMultiThreaded('changeset', sprintf($typeMap{'changeset'}->{'command'}, $repositoryName, $repositoryPath), 2, sub {
-				my ($repository,$changeset,$developer,$file,$changes,$type,$module,$package,$class,$path) = @_;		
-				
-				$LOGGER->debug("RowVisitor(%s): %s", 'changeset', join(' | ', @_));
-
-				$writeQueues->{'changeset'}->enqueue(join(',', ($repository,$changeset,$developer,$file,$changes,$type,$module,$package,$class,$path)));
-			});
-
-			# create Repository modules
-		 	csvGenericWalkerMultiThreaded('module', sprintf($typeMap{'module'}->{'command'}, $repositoryName, $repositoryPath), 2, sub {
-				my ($repository,$module,$group, $path) = @_;		
-				
-				$LOGGER->debug("RowVisitor(%s): %s", 'module', join(' | ', @_));
-
-				$writeQueues->{'module'}->enqueue(join(',', ($repository,$module,$group, $path)));
-			});
-		});
-	});	
-}
 
 sub generateProjectArguments
 {
@@ -411,206 +425,19 @@ sub generateProjectArguments
 	}
 }
 
-#
-#  Validate the Type Definition map, to make sure all of the configured commands are available.
-#
-sub validateTypeMap
+sub determineOutputDirectory
 {
-	my (%typeMap) = @_;
-    for my $type (keys %typeMap)
-    {
-    	my $scriptString = $typeMap{$type}->{'command'};
-        my $script = (split(' ', $scriptString))[0];
-        die("Could not find script: $script") unless (-f "$script");
-    }
-}
+	my ($outputDir, @possibleDefaults) = @_;
 
-#
-#  create a thread, and register it's log indent level.
-#
-sub createThread
-{
-	my ($function) = @_;
-
-	my $parentId = threads->tid();
-	my $thread = new Thread($function);
-	my $childId = $thread->tid();
-	$LOGGER->setThreadIndent($parentId, $childId);
-	return $thread;
-}
-#
-#  Monitor the write queues for each type, to make sure the file writes are fast enough.
-#
-sub monitorFileWriteQueue
-{
-	my ($writeQueues, $interval) = @_;
-
-	# give the interval a default value
-	$interval = (defined $interval ? $interval : 1);
-
-	$LOGGER->debug(sprintf("---------------- Create a thread to monitor the write queues."));
-	return createThread(sub {
-		# break variable for while loop
-		my $continue = 0;
-		# listen for signal to break while loop
-		$SIG{INT} = sub {$continue=1;};
-		# monitoring loop
-		while($continue == 0)
+	unless (defined $outputDir)
+	{	
+		for my $dir (@possibleDefaults)
 		{
-			sleep $interval;
-			# print the size of all of the queues.
-			for my $type (keys %{$writeQueues})
-			{
-				my $size = $writeQueues->{$type}->pending();
-				$LOGGER->debug(sprintf("---------------- Queue(%s) size: %d", $type, $size));
-			}
+			$outputDir = $dir if (-d $dir);
 		}
-	});
-}
-
-#
-#  #hutdown all of the write and monitoring threads, once all of the data has been processed.
-#
-sub closeFileWriteQueues
-{
-	my ($writeQueues, $writeToFileThreads, $monitorQueueThread) = @_;
-
-	# add a terminator to the end of each queue
-	$writeQueues->{$_}->enqueue(undef) for keys %{$writeQueues};
-
-	# wait for all of the write threads to finish.
-	$_->join() for @{$writeToFileThreads};
-
-	$monitorQueueThread->kill('INT')->join() if (defined $monitorQueueThread);
-}
-
-#
-#  Create write queues for each of the given types.
-#  Many threads can write to a queue, and one thread reads from the queue, and writes to a file.
-#
-sub createFileWriteQueues
-{
-	my ($writeMode, $monitorInterval, %typeMap) = @_;
-
-	my %writeQueues = ();
-
-	$writeQueues{$_} = new Thread::Queue() for keys %typeMap;
-
-	my $monitorQueueThread;
-	$monitorQueueThread = monitorFileWriteQueue($writeQueues) if ($monitorInterval > 0);
-
-	# create all of the write to file threads.
-	my @writeToFileThreads = ();
-	for my $type (keys %typeMap)
-	{
-		my $writerProcess = sub {
-			$LOGGER->debug("WriteProcessor($type): Getting write queue($type)\n");
-			my $queue = $writeQueues{$type};
-			
-			my $file = sprintf("%s/%s.csv", $tmpDir, $type);
-			my $fh;
-			$LOGGER->debug("WriteProcessor($type): Opening output file($file)\n");
-			open($fh, $writeMode, $file);
-			
-			# if in override, write header line
-			if ($writeMode eq ">")
-			{
-				my $header = $typeMap{$type}->{'header'};
-				print $fh $header . "\n";
-			}
-
-			# read from queue, and write into the file.
-			my $line;
-			while ($line = $queue->dequeue())
-			{
-				$LOGGER->debug("WriteProcessor($type): writing line: [$line]\n");
-				print $fh $line . "\n";
-				$fh->flush();
-			}
-			$LOGGER->debug("WriteProcessor($type): Closing output file($file)\n");
-			close($fh);
-			$LOGGER->debug("WriteProcessor($type): Writer Thread($file) has finished.\n");
-		};
-
-		$LOGGER->debug("WriteProcessor(): Creating Writer Thread(%s)",$type);
-
-		push(@writeToFileThreads, createThread($writerProcess));
 	}
 
-	return  (\%writeQueues, \@writeToFileThreads, $monitorQueueThread);
-}
-
-#
-# Read and process all of the lines from a given command.
-# this will spawn a given number of threads to call a given RowVisitor, that is used to process the rows.
-#
-sub csvGenericWalkerMultiThreaded
-{
-	my ($type, $command, $noThreads, $rowVisitor) = @_;
-
-	$LOGGER->debug("CommandExecutor(%s): About to walk output from command: $command", $type);
-
-	# Queue for lines that need to be processed
-	my $processingQueue = new Thread::Queue();
-
-	# Processor for processing lines in the Processing Queue
-	my $rowProcessor = sub {
-		$LOGGER->debug("RowProcessor(%s): Starting to process records.", $type);
-		my $line;
-		while ($line = $processingQueue->dequeue())
-		{
-			my @values = split(',', $line);
-			$LOGGER->debug("RowProcessor(%s): Processing line: %s", $type, $line);
-			$rowVisitor->(@values);
-		}
-		$LOGGER->debug("RowProcessor(%s): Processing completed.", $type);
-	};
-
-	# create the processing threads.
-	$LOGGER->debug("CommandExecutor(%s): Creating threads(%d) to process records.", $type, $noThreads);
-	my @threads = ();
-	push(@threads, createThread($rowProcessor)) for 1..$noThreads;
-	#$LOGGER->debug("CommandExecutor(%s): Created RowProcessor[%d])", $type, $_->tid()) for (@threads);
-
-	# processor for processing command output lines.
-	my $outputProcessor = sub {
-		$LOGGER->debug("OutputProcessor(%s): executing command: $command", $type);
-	
-		# execute a command, and create a file handle to read the output from.
-		my $commandOutputPipe;
-		my $commandPID = open($commandOutputPipe, "-|", "$command");
-
-		$LOGGER->debug("OutputProcessor(%s): processing output: $command", $type);
-		# read the command output line by line
-		my $counter = 0	;
-		while (<$commandOutputPipe>)
-		{
-			$counter++;
-
-			my $line = $_;
-			chomp($line);
-
-			# add the line to the processing queue, to be handled by the child processing threads.
-			$processingQueue->enqueue($line);
-
-			$LOGGER->debug("OutputProcessor(%s): Added line to queue: %s", $type, $line);
-		}
-		# close the file handle use to read from the command output.
-		close($commandOutputPipe);
-
-		# inform each of the child threads that there us not going to be any more data.
-		$processingQueue->enqueue(undef) for 1..$noThreads;
-
-		$LOGGER->debug("OutputProcessor(%s): Waiting for child threads(%d) to finish.", $type, $noThreads);
-
-		# wait for all of the child threads to finish.
-		$_->join() for @threads;
-	};
-
-	# WIP: the following was used to test backgrounding all threads. 
-	$LOGGER->debug("CommandExecutor(%s): Creating a thread to process output.", $type);
-	\&$outputProcessor();
-	#createThread($outputProcessor)->join();
+	return $outputDir;
 }
 
 
@@ -654,17 +481,53 @@ The name of the entity to be analised.
 
 The path to the element to be analised.
 
+=item B<--owner>  
+
+(type = project) the owner of the project to be analised.
+
+=item B<--list>  
+
+(type = project) supply a list of project to be analised.
+
+=item B<--all>  
+
+(type = project) analise all of the registered projects.
+
 =item B<--log-level>  
 
 The log level to be used.
 
+=item B<--log-level>  
+
+Indent logs based on thread hierachy.
+
 =item B<--dry-run>  
 
-Don't do anything, just pring out the option values.
+Don't do anything, just print out the option values.
 
 =item B<--override>  
 
 Override the relationship CSV files.
+
+=item B<--gen-cypher>
+
+Generate the data import cyphers.
+
+=item B<--gen-data>
+
+Generate the anaysis data.
+
+=item B<--gen-all>
+
+Generate both data and import cyphers, and import data into the neo4j database.
+
+=item B<--import>
+
+Import current data into the Neo4j database.
+
+=item B<--monitor-queues>
+
+Switch on write queue monitoring, supplying the polling interval in seconds.
 
 =back
 
