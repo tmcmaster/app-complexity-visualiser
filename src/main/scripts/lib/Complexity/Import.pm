@@ -110,7 +110,7 @@ sub writeTypeImportCypherToFileHandle
 
 	# get row details
 	my $rowAlias = $typeMap->{$type}->{'alias'};
-	my $rowClass = ucfirst($type);
+	my $rowClass = ($type =~ m/-/ ? ucfirst((split('-', $type))[1]) : ucfirst($type));
 	my $rowKeys = $columnDef->{'keys'};
 	my $rowProps = $columnDef->{'props'};
 	my $rowPropsString = createPropropertiesString('row', @{$rowKeys}, @{$rowProps});
@@ -162,8 +162,8 @@ sub writeTypeImportCypherToFileHandle
 		my $rowToParent = $columnDef->{'parent'}->{'relationship'}->{'row-parent'};			
 
 		# add the parent / row realtionships
-		_createRelationship($fh, $parentAlias, $parentToRow, $rowAlias;
-		_createRelationship($fh, $rowAlias, $rowToParent, $parentAlias;
+		_createRelationship($fh, $parentAlias, $parentToRow, $rowAlias);
+		_createRelationship($fh, $rowAlias, $rowToParent, $parentAlias);
 	}
 
 	# if there are children
@@ -198,7 +198,7 @@ sub _createRelationship
 		return;
 	}
 
-	my $relationshipLabel = (defined $relationship ? ":".$relationship : "");
+	my $relationshipString = (defined $relationship ? ":".$relationship : "");
 	printf $fh $TEMPLATE_RELATIONSHIP, $fromAlias, $relationshipString, $toAlias;
 }
 
@@ -218,7 +218,7 @@ sub createPropropertiesString
 			$value = $key;
 		}
 		$key = $value if ($mode eq 'row');
-		push(@propList, "$key:line.$value") unless ($prop eq "");
+		push(@propList, "$key:coalesce(line.$value, '')") unless ($prop eq "");
 	}
 	return join(',', @propList);	
 }

@@ -233,12 +233,12 @@ my %typeMap = (
 		'command' => "./csvgen-changeset.pl %s %s",
 		'options' => [$name, $path],
 		'threads' => 2,
-		'header' => "repository,name,developer,file,changes,type,module,package,class,path", # need to deprecate
+		'header' => "repository,name,date,developer,file,changes,type,module,package,class,path", # need to deprecate
 		'columns' => {
-			'headings' => ['repository','name','developer','file','changes','type','module','package','class','path'],
+			'headings' => ['repository','name','date', 'developer','file','changes','type','module','package','class','path'],
 			'keys' => ['name'],
 			#'props' => ['developer','file','changes','type','module','package','class','path'],
-			'props' => ['developer','file','changes','type','path'],
+			'props' => ['date', 'developer','file','changes','type','path'],
 			'parent' => {
 				'type' => 'repository',
 				'keys' => ['name:repository'],
@@ -290,9 +290,9 @@ my %typeMap = (
 				'type' => "repository",
 				'keys' => ['name:repository'],
 				'props' => [],
-				'relationships' => {
+				'relationship' => {
 					'parent-row' => "CONTAINS",
-					'row-parent' => "BELOMGS_TO",
+					'row-parent' => "BELONGS_TO",
 				}
 			}
 		},
@@ -308,19 +308,20 @@ my %typeMap = (
 		]
 	},
 	'module-module' => {
+		'alias' => "mm",
 		'command' => "./csvgen-module-module.pl %s %s",
 		'options' => [$name, $path],
-		'header' => "parent-name,parent-group,child-name,child-group,path", # need to deprecate
+		'header' => "pname,pgroup,name,group,path", # need to deprecate
 		'threads' => 2,
 		'columns' => {
-			'headings' => ['parent-name','parent-group','name','group','path'],
+			'headings' => ['pname','pgroup','name','group','path'],
 			'keys' => ['name','group'],
 			'props' => ['path'],
 			'parent' => {
 				'type' => "module",
-				'keys' => ['name:parent-name','group:parent-group'],
+				'keys' => ['name:pname','group:pgroup'],
 				'props' => [],
-				'relationships' => {
+				'relationship' => {
 					'parent-row' => "REFERENCES",
 					'row-parent' => "REFERENCED_BY",
 				}
@@ -394,6 +395,7 @@ if ($genData || $genAll)
 	# close the file write queues, and stop the queue monitoring
 	closeFileWriteQueues($writeQueues, $writeToFileThreads, $monitorQueueThread);
 }
+
 
 $LOGGER->debug("Main(%s): Job well done.", $type);
 

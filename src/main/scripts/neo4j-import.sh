@@ -1,5 +1,9 @@
 #!/bin/bash
 
+echo "";
+echo "!! This script has hard coded paths that need to be fixed !!";
+echo "";
+
 if [ "$1" == "--force" ];
 then
 	echo "removing database lock: /cygdrive/c/Users/Tim/Workspace/Neo4j/db/scratch/lock";
