@@ -21,7 +21,7 @@ our @EXPORT = qw(getDirectoryPlusArgs getNameForPath splitPath generateChildPath
 use lib './lib';
 use Complexity::Logging;
 
-my $LOGGER = getOrCreateLogger('lib-path');
+#my $LOGGER = getOrCreateLogger('lib-path');
 
 ###################################################################################################################
 #
