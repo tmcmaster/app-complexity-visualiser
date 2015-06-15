@@ -66,11 +66,13 @@ sub analiseProject
 				# get child type
 				my $childType = $child->{'type'};
 				# get the parameters the child type command needs
-				my @params = @_[@{$child->{'params'}}];
+				my @childParams = @_[@{$child->{'params'}}];
+
+				my @parentParams = (defined $child->{'parent-params'} ? @params : ());
 
 				# analise the child type
 				$LOGGER->debug("RowVisitor(%s): About to analise ChildType(%s)", $type, $childType);		
-				analiseProject($typeMap, $childType, $writeQueues, @params);
+				analiseProject($typeMap, $childType, $writeQueues, @parentParams, @childParams);
 				$LOGGER->debug("RowVisitor(%s): Finished analising ChildType(%s)", $type, $childType);		
 			}
 		}
@@ -275,7 +277,7 @@ sub csvGenericWalkerMultiThreaded
 	
 		# execute a command, and create a file handle to read the output from.
 		my $commandOutputPipe;
-		my $commandPID = open($commandOutputPipe, "-|", "$command");
+		my $commandPID = open($commandOutputPipe, "-|", "$command | head -3");
 
 		$LOGGER->debug("OutputProcessor(%s): processing output: $command", $type);
 		# read the command output line by line

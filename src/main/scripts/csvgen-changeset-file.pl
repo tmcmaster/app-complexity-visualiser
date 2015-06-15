@@ -34,12 +34,12 @@ my $headers = ($#ARGV > 1 ? $ARGV[2] : "");
 
 # my $junk = "Changeset | e781487838cde8fb858ef1fb2889cc470fa2f550 | Roman Bruckner | 2015-05-22 | Roman Bruckner |  (HEAD   origin/master   origin/HEAD   master)";
 # $junk =~ m/Changeset \| (.*?)\s+|.*/;
-# printf("%s : %s : %s : %s", $1,$2,$3,$4);
-# exit(0);
+#printf("%s : %s : %s : %s", $1,$2,$3,$4);
+#exit(0);
 
 if ($headers eq "--headers")
 {
-	printf("repository,changeset,date,developer,file,changes,type,module,package,class,path\n");
+	printf("repository,changeset,file,changes,type,module,package,class,path\n");
 }
 
 if (-d "$repositoryPath/.hg")
@@ -85,18 +85,30 @@ sub getChangesetDataGit
 	my $module;
 	my $path;
 
-	open(HG_DATA, "(cd '${repositoryPath}'; git log --date=short --format=\"Changeset | %H | %an | %ad | %cn | %d\") |");
+	open(HG_DATA, "(cd '${repositoryPath}'; git log --numstat --date=short --format=\"Changeset | %H | %an | %ad | %cn | %d\") |");
 	while(<HG_DATA>)
 	{
 		chomp($_);
 		#print "[$_]\n";
 		if($_=~m/^Changeset \| (.*?) \| (.*) \| (.*) \| (.*) \| (.*)/)
 		{
+			if ($changeset ne "")
+			{
+				printf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$file,$changes,$type,$module,$package,$class,$path);
+			}
 			$changeset = $1;
 			$developer = parseDeveloperName($2);
 			$date = $3;
-			printf("%s,%s,%s,%s\n",$repositoryName,$changeset,$date,$developer);
 		}
+		elsif($_=~m/^([0-9]*)\s+([0-9]*)\s(.*)/)
+		{
+			$changes = $1 + $2;
+			($file,$type,$module,$package,$class,$path) = parseFileName($dir, $3);
+		}
+	}
+	if ($changeset ne "")
+	{
+		printf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$file,$changes,$type,$module,$package,$class,$path);
 	}
 	close(HG_DATA);	
 }
@@ -117,7 +129,7 @@ sub getChangesetDataHG
 	my $module;
 	my $path;
 
-	open(HG_DATA, "(cd '${repositoryPath}'; hg log --template 'Changeset|{date|shortdate}|{node|short}|{branch}|{author}\n') |");
+	open(HG_DATA, "(cd '${repositoryPath}'; hg log --stat --template 'Changeset|{date|shortdate}|{node|short}|{branch}|{author}\n') |");
 	while(<HG_DATA>)
 	{
 		chomp($_);
@@ -126,7 +138,13 @@ sub getChangesetDataHG
 			$date = $1;
 			$changeset = $2;
 			$developer = parseDeveloperName($4);
-			printf("%s,%s,%s,%s\n",$repositoryName,$changeset,$date,$developer);
+		}
+		elsif($_=~m/\s+(.*?)\s+\|\s+([0-9]*?)\s.*/)
+		{
+			($file,$type,$module,$package,$class,$path) = parseFileName($dir, $1);
+			$changes=$2;
+			$package =~ tr/\//\./;
+			printf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",$repositoryName,$changeset,$file,$changes,$type,$module,$package,$class,$path);
 		}
 	}
 	close(HG_DATA);	
