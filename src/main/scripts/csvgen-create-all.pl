@@ -233,12 +233,11 @@ my %typeMap = (
 		'command' => "./csvgen-changeset.pl %s %s",
 		'options' => [$name, $path],
 		'threads' => 2,
-		'header' => "repository,name,date,developer,file,changes,type,module,package,class,path", # need to deprecate
+		'header' => "repository,name,date,developer", # need to deprecate
 		'columns' => {
-			'headings' => ['repository','name','date', 'developer','file','changes','type','module','package','class','path'],
+			'headings' => ['repository','name','date', 'developer'],
 			'keys' => ['name'],
-			#'props' => ['developer','file','changes','type','module','package','class','path'],
-			'props' => ['date', 'developer','file','changes','type','path'],
+			'props' => ['date', 'developer'],
 			'parent' => {
 				'type' => 'repository',
 				'keys' => ['name:repository'],
@@ -257,24 +256,43 @@ my %typeMap = (
 						'row-child' => "CREATED_BY",
 						'child-row' => "CREATED"
 					}
-				},
-				{
-					'type' => "file",
-					'keys' => ['path'],
-					'props' => ['name:file','changes','type','name:module','package','class'],
-					'relationships' => {
-						'row-child' => "CHANGED",
-						'child-row' => "CHANGED_BY"
-					}
 				}
 			]
-		}
+		},
+		'children' => [
+			{
+				'type' => 'changeset-file',
+				'parent-params' => 1,
+				'params' => []
+			}
+		]
 	},
 	'developer' => {
 		'alias' => "d",
 	},
 	'file' => {
 		'alias' => "f",
+	},
+	'changeset-file' => {
+		'alias' => "f",
+		'command' => "./csvgen-changeset-file.pl %s %s",
+		'options' => [$name, $path],
+		'header' => "repository,changeset,name,changes,type,module,package,class,path", # need to deprecate
+		'threads' => 2,
+		'columns' => {
+			'headings' => ['repository','changeset', 'name','changes','type','module','package','class','path'],
+			'keys' => ['path'],
+			'props' => ['changes','type','module','package','class'],
+			'parent' => {
+				'type' => "changeset",
+				'keys' => ['name:changeset'],
+				'props' => [],
+				'relationship' => {
+					'parent-row' => "CHANGED",
+					'row-parent' => "CHANGED_BY",
+				}
+			}
+		}
 	},
 	'module' => {
 		'alias' => "m",
@@ -381,7 +399,7 @@ $LOGGER->debug("Main(%s): So lets get started.", $type);
 
 if ($genCypher || $genAll)
 {
-	generateCypherImportFiles(\%typeMap, $tmpDir, 'project');
+	generateCypherImportFiles(\%typeMap, $tmpDir, $type);
 }
 
 if ($genData || $genAll)

@@ -42,6 +42,7 @@ my $TEMPLATE_LOAD          = "\nLOAD CSV WITH HEADERS FROM \"%s/%s.csv\" AS line
 my $TEMPLATE_CREATE        = "\nCREATE (%s:%s {%s})";
 my $TEMPLATE_MATCH         = "\nMATCH (%s:%s {%s})";
 my $TEMPLATE_MERGE         = "\nMERGE (%s:%s {%s})";
+#my $TEMPLATE_RELATIONSHIP  = "\nCREATE (%s {%s})-[%s]->(%s {%s})";
 my $TEMPLATE_RELATIONSHIP  = "\nCREATE (%s)-[%s]->(%s)";
 
 my $LOGGER = new Logger('complexity-import','ERROR',0);
@@ -113,6 +114,7 @@ sub writeTypeImportCypherToFileHandle
 	my $rowClass = ($type =~ m/-/ ? ucfirst((split('-', $type))[1]) : ucfirst($type));
 	my $rowKeys = $columnDef->{'keys'};
 	my $rowProps = $columnDef->{'props'};
+	my $rowKeyString = createPropropertiesString('keys', @{$rowKeys});
 	my $rowPropsString = createPropropertiesString('row', @{$rowKeys}, @{$rowProps});
 	
 	print $fh "\n//\n// importing $type\n//\n\n";
@@ -152,18 +154,20 @@ sub writeTypeImportCypherToFileHandle
 		}
 	}
 
-	printf $fh $TEMPLATE_CREATE, $rowAlias, $rowClass, $rowPropsString;
+	printf $fh $TEMPLATE_MERGE, $rowAlias, $rowClass, $rowPropsString;
 
 	# if there is a parent
 	if (defined $parentType)
 	{
 		my $parentAlias = $typeMap->{$parentType}->{'alias'};
+		my $parentKeys = $columnDef->{'parent'}->{'keys'};
 		my $parentToRow = $columnDef->{'parent'}->{'relationship'}->{'parent-row'};			
 		my $rowToParent = $columnDef->{'parent'}->{'relationship'}->{'row-parent'};			
+		my $parentKeyString = createPropropertiesString('keys', @{$parentKeys});
 
 		# add the parent / row realtionships
-		_createRelationship($fh, $parentAlias, $parentToRow, $rowAlias);
-		_createRelationship($fh, $rowAlias, $rowToParent, $parentAlias);
+		_createRelationship($fh, $parentAlias, $parentKeyString, $parentToRow, $rowAlias, $rowKeyString);
+		_createRelationship($fh, $rowAlias, $rowKeyString, $rowToParent, $parentAlias, $parentKeyString);
 	}
 
 	# if there are children
@@ -175,13 +179,15 @@ sub writeTypeImportCypherToFileHandle
 			my $childType = $child->{'type'};
 			my $childClass = ucfirst($childType);
 			my $childAlias = $typeMap->{$childType}->{'alias'};
+			my $childKeys = $child->{'keys'};
 			my $relationship = $child->{'relationships'};
 			my $rowToChild = $relationship->{'row-child'};
 			my $childToRow = $relationship->{'child-row'};
+			my $childKeyString = createPropropertiesString('keys', @{$childKeys});
 
 			# add the row / child realtionships
-			_createRelationship($fh, $rowAlias, $rowToChild, $childAlias);
-			_createRelationship($fh, $childAlias, $childToRow, $rowAlias);
+			_createRelationship($fh, $rowAlias, $rowKeyString, $rowToChild, $childAlias, $childKeyString);
+			_createRelationship($fh, $childAlias, $childKeyString, $childToRow, $rowAlias, $rowKeyString);
 		}
 	}
 
@@ -190,7 +196,7 @@ sub writeTypeImportCypherToFileHandle
 
 sub _createRelationship
 {
-	my ($fh, $fromAlias, $relationship, $toAlias) = @_;
+	my ($fh, $fromAlias, $fromKeyString, $relationship, $toAlias, $toKeyString) = @_;
 
 	unless (defined $fromAlias && defined $toAlias)
 	{
@@ -199,6 +205,7 @@ sub _createRelationship
 	}
 
 	my $relationshipString = (defined $relationship ? ":".$relationship : "");
+	#printf $fh $TEMPLATE_RELATIONSHIP, $fromAlias, $fromKeyString, $relationshipString, $toAlias, $toKeyString;
 	printf $fh $TEMPLATE_RELATIONSHIP, $fromAlias, $relationshipString, $toAlias;
 }
 
