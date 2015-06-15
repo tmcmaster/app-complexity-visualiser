@@ -275,7 +275,7 @@ sub csvGenericWalkerMultiThreaded
 	
 		# execute a command, and create a file handle to read the output from.
 		my $commandOutputPipe;
-		my $commandPID = open($commandOutputPipe, "-|", "$command");
+		my $commandPID = open($commandOutputPipe, "-|", "$command | head -20");
 
 		$LOGGER->debug("OutputProcessor(%s): processing output: $command", $type);
 		# read the command output line by line
