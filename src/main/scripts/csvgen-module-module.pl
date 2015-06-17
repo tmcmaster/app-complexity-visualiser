@@ -36,8 +36,8 @@ if ($#ARGV > 1 && $ARGV[2] eq "--headers")
 	print "parent-name,parent-name,child-name,child-group\n";
 }
 
-my $sourceGroup;
-my $sourceArtifact;
+my $parentGroup;
+my $parentArtifact;
 my $fh;
 open($fh, "<", "$modulePath/target/dependency-tree.txt");
 while (<$fh>)
@@ -47,13 +47,15 @@ while (<$fh>)
 
 	if ($line =~ m/^digraph \"(.*?):(.*?):.*/)
 	{
-		$sourceGroup = $1;
-		$sourceArtifact = $2;
+		$parentGroup = $1;
+		$parentArtifact = $2;
 	}
-	elsif ($line =~ m/.*\" -> \"(.*?):(.*?):.*/)
+	elsif ($line =~ m/\s+\"(.*?):(.*?):.*\" -> \"(.*?):(.*?):.*\" ;/)
 	{
-		my $targetGroup = $1;
-		my $targetArtifact = $2;
+		my $sourceGroup = $1;
+		my $sourceArtifact = $2;
+		my $targetGroup = $3;
+		my $targetArtifact = $4;
 		printf("%s,%s,%s,%s\n",$sourceArtifact,$sourceGroup,$targetArtifact,$targetGroup);
 	}
 	STDOUT->flush();

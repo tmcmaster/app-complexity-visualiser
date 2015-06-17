@@ -23,7 +23,7 @@ use Complexity::Logger;
 #  Export Section
 #
 
-our @EXPORT = qw(analiseProject createFileWriteQueues closeFileWriteQueues validateTypeMap);
+our @EXPORT = qw(analiseProject createFileWriteQueues closeFileWriteQueues validateTypeMap importGeneratedDataIntoNeo4j);
 
 ###################################################################################################################
 #
@@ -77,6 +77,17 @@ sub analiseProject
 
 		$LOGGER->debug("RowVisitor(%s): Finished analising children.", $type);		
 	});
+}
+
+sub importGeneratedDataIntoNeo4j
+{
+	my $fh;
+	open($fh, "-|", "./neo4j-import.sh");
+	while (<$fh>)
+	{
+		print $_;
+	}
+	close($fh);
 }
 
 #
@@ -275,7 +286,7 @@ sub csvGenericWalkerMultiThreaded
 	
 		# execute a command, and create a file handle to read the output from.
 		my $commandOutputPipe;
-		my $commandPID = open($commandOutputPipe, "-|", "$command | head -20");
+		my $commandPID = open($commandOutputPipe, "-|", "$command");
 
 		$LOGGER->debug("OutputProcessor(%s): processing output: $command", $type);
 		# read the command output line by line
