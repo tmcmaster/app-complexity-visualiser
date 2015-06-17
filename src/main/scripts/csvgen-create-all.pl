@@ -188,8 +188,8 @@ my %typeMap = (
 		'header' => "name,owner,path",  # need to deprecate
 		'columns' => {
 			'headings' => ['name','owner','path'],
-			'keys' => ['name'],
-			'props' => ['owner','path']
+			'keys' => ['path', 'name'],
+			'props' => ['owner']
 		},
 		'children' => [
 			{
@@ -206,8 +206,8 @@ my %typeMap = (
 		'header' => "project,name,type,path", # need to deprecate
 		'columns' => {
 			'headings' => ['project','name','type','path'],
-			'keys' => ['name'],
-			'props' => ['type','path'],
+			'keys' => ['path', 'name'],
+			'props' => ['type'],
 			'parent' => {
 				'keys' => ['name:project'],
 				'props' => [],
@@ -238,7 +238,7 @@ my %typeMap = (
 			'headings' => ['repository','name','date', 'developer','file','changes','type','module','package','class','path'],
 			'keys' => ['name'],
 			#'props' => ['developer','file','changes','type','module','package','class','path'],
-			'props' => ['date', 'developer','file','changes','type','path'],
+			'props' => ['date', 'developer'],
 			'parent' => {
 				'type' => 'repository',
 				'keys' => ['name:repository'],
@@ -261,9 +261,10 @@ my %typeMap = (
 				{
 					'type' => "file",
 					'keys' => ['path'],
-					'props' => ['name:file','changes','type','name:module','package','class'],
+					'props' => ['name:file','type','module','package','class'],
 					'relationships' => {
 						'row-child' => "CHANGED",
+						'row-child-props' => ['changes'],
 						'child-row' => "CHANGED_BY"
 					}
 				}
@@ -396,6 +397,11 @@ if ($genData || $genAll)
 	closeFileWriteQueues($writeQueues, $writeToFileThreads, $monitorQueueThread);
 }
 
+
+if ($import)
+{
+	importGeneratedDataIntoNeo4j();
+}
 
 $LOGGER->debug("Main(%s): Job well done.", $type);
 

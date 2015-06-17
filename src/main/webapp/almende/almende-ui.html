@@ -1,0 +1,330 @@
+<!doctype html> <html>
+  <head>
+    <title>Network | Basic usage</title>
+
+    <script type="text/javascript" src="vis.js"></script>
+    <script type="text/javascript" src="jquery.js"></script>
+    
+    <link href="vis.css" rel="stylesheet" type="text/css" />
+
+    <script type="text/javascript">
+    		//var cypher = 'MATCH (n) where id(n) = 37 return n';
+
+  	  var nodeFilter = function(data)
+  	  {
+  	  	var nodes = [];
+
+  	  	var newData = {
+  	  		nodes: nodes,
+  	  		edges: data.edges
+  	  	}
+
+    		var nodeFilter = document.getElementById('sourceFilter').value;
+
+  	  	for (i in data.nodes)
+  	  	{
+  	  		var node = data.nodes[i];
+  	  		if (nodeFilter === '' || node.label.indexOf(nodeFilter) > -1)
+  			{
+  	  			newData.nodes.push(node);
+  	  		}
+  	  	}
+  	  	return newData;
+  	  }
+
+    	var network = null;
+    	var data = null;
+    	var filter = function(data) {return data};
+    	
+    	//window.filter = nodeFilter;
+
+    	function convertData(neoData)
+    	{
+        console.log('About to convert data.');
+    		var data = {
+    			nodes : [],
+    			edges : []
+    		};
+
+    		var nodeMap = {};
+    		var relationshipMap = {};
+
+    		for (var i in neoData.data)
+    		{
+    			for (var j in neoData.data[i])
+    			{
+    				var subList = neoData.data[i];
+    				var item  = subList[j];
+    				if (item.self.indexOf('data/node') !== -1)
+    				{
+    					var match = /.*\/node\/([0-9]*)/.exec(item.self);
+              var node = {
+    						id:match[1],
+    						label: item.data.name.substring(0,10),
+                group: item.metadata.labels[0]
+    					};
+    					if (nodeMap[node.id] === undefined)
+    					{
+    						nodeMap[node.id] = node;
+    						data.nodes.push(node);
+    					}
+    				}
+    				else if (item.self.indexOf('data/relationship') !== -1)
+    				{
+    					var match = /.*\/relationship\/([0-9]*)/.exec(item.self);
+    					var relationshipId = match[1];
+    					var fromId = /.*\/node\/([0-9]*)/.exec(item.start)[1];
+    					var toId = /.*\/node\/([0-9]*)/.exec(item.end)[1];
+    					var relationshipId = match[1];
+    					var relationship = {
+    						id: relationshipId,
+    						from: fromId,
+    						to: toId
+    					};
+    					if (relationshipMap[relationship.id] === undefined)
+    					{
+    						relationshipMap[relationship.id] = relationship;
+    						data.edges.push(relationship);
+    					}
+    				}
+    			}
+    		}
+
+        console.log('Data has been converted.');
+
+    		return data;
+    	}
+
+    	function createGraph(data)
+    	{
+        console.log('About to filter data.');
+    		window.data = window.filter(data);
+        console.log('Data has been filtered.');
+
+  		var container = document.getElementById('mynetwork');
+  		if (window.network !== null)
+  		{
+  			window.network.destroy();
+  		}
+  		var options = {
+  			configure : {enabled:true,filter:'node'},
+      		groups: {
+  			log4j: {
+              		color: {
+                  		background: 'lightgrey'
+              		}
+          		}
+      		}
+    		};
+        console.log('About to build network.');
+    		window.network = new vis.Network(container, window.data, options);
+        console.log('Network has been built.');
+    	}
+
+  	  $(document).ready(function() {
+        // Create graph filter
+        $('#filter').click(function () {
+          loadAndGraphData();
+  	  	});
+
+        function loadAndGraphData()
+        {
+          var cypher = $('#cypher').val();
+          var startDate = $('#temporalStart').text();
+          var endDate = $('#temporalEnd').text();
+
+          cypher = cypher.replace('START_DATE', startDate);
+          cypher = cypher.replace('END_DATE', endDate);
+
+          console.log("About to load data with cypher: " + cypher);
+
+          $.ajax({
+            type: "POST",
+            url:'http://localhost:7474/db/data/cypher',
+            data:{ query : cypher },
+            success: function(neoData) {
+              console.log(neoData);
+              var data = convertData(neoData);
+              console.log(data);
+              createGraph(data);
+            }
+          });
+        }
+
+        // changing temporial perspective; rebuild the graph
+        $('#temporalFilter').change(function (element) {
+          updateTemporalRange();
+        });
+        $('#temporalMonths').change(function (element) {
+          updateTemporalRange();
+        });
+
+        function updateTemporalRange()
+        {
+          var startPoint = parseInt($('#temporalFilter').val());
+          var months = parseInt($('#temporalMonths').val());
+
+          var startDate=new Date("2005-01-01");
+          startDate.setMonth(startDate.getMonth()+startPoint);
+          var startDateString = startDate.yyyymmdd();
+          // var startYear=parseInt(2005 + Math.round(startPoint/12));
+          // var startMonth=parseInt((startPoint%12) + 1);
+          // var startDay='01';
+
+          // var startDateString = startYear + '-' + (startMonth < 10 ? '0' + startMonth : startMonth) + '-' + startDay;
+          // var startDate = new Date(startDateString);
+          //var endDate = new Date(startDate.getTime() + (months*30*24*60*60*1000));
+          var endDate = new Date(startDate);
+          endDate.setMonth(endDate.getMonth()+months);
+          var endDateString = endDate.yyyymmdd();
+
+          console.log('New date range: Start(' + startDateString + '), End(' + endDateString + ')');
+
+          $('#temporalStart').text(startDateString);
+          $('#temporalEnd').text(endDateString);
+
+          $('#cypher').val();
+          //loadAndGraphDate();
+        }
+
+        Date.prototype.yyyymmdd = function()
+        {
+            var yyyy = this.getFullYear();
+            var mm = this.getMonth() < 9 ? "0" + (this.getMonth()+1) : (this.getMonth() + 1);
+            var dd = this.getDate() < 9 ? "0" + this.getDate() : this.getDate();
+
+            return "".concat(yyyy).concat('-').concat(mm).concat('-').concat(dd);
+        };
+
+        updateTemporalRange();
+
+        //createGraph(dependencyData);
+  	  });
+
+    </script>
+
+    <script>
+      var cyphers = [
+        {
+          title: 'Changes to packages per developer',
+          cypher: 'MATCH (r:Repository)-[rc]-(c:Changeset)-[cf]-(f:File) MATCH (c)-[cd]-(d:Developer) return f.package as Package,d.name as Developer ,sum(TOINT(cf.changes)) as Changes'
+        },
+        {
+          title: 'Changeset between 2 dates',
+          cypher: 'MATCH (r:Repository)-[a]->(c:Changeset)-[b]-(d:Developer) WHERE c.date > "START_DATE" and c.date < "END_DATE" RETURN r,a,c,b,d'
+        },
+        {
+          title: 'Number of files changed, and changes made, per changeset',
+          cypher: 'MATCH (r:Repository)-[rc]-(c:Changeset)-[cf]-(f:File) MATCH (c)-[cd]-(d:Developer) return d.name as Developer, c.name as Changeset, count(f) as Files,sum(TOINT(cf.changes)) as Changes'
+        },
+        {
+          title: 'Changes to packages, by Developer, ordered by number of changes',
+          cypher: 'MATCH (r:Repository)-[rc]-(c:Changeset)-[cf]-(f:File) MATCH (c)-[cd]-(d:Developer) return f.package as Package, d.name as Developer,sum(TOINT(cf.changes)) as Changes order by Package,Changes DESC'
+        }
+      ];
+      var templates = $('#templates');
+      $(templates).append('<option value="sdsfsd">sadfasdf</option>');
+      
+      $(cyphers).each(function(cypher) {
+        console.log(cyphers[cypher].title);
+        $(templates).append('<option value="' + cyphers[cypher].cypher + '">' + cyphers[cypher].title + '</option>');
+      });
+    </script>
+
+    <style type="text/css">
+      body {
+        box-sizing:border-box;
+      }
+      #mynetwork {
+        margin-left:2px;
+        width: 100%;
+        height: 900px;
+        border: 1px solid lightgray;
+      }
+
+  	.outer {
+      box-sizing:border-box;
+  		//border:solid blue 1px;
+  		display:inline-block;
+  		position:relative;
+  		width:1500px;
+  		height:1000px;
+  	}
+  	.inner {
+      box-sizing:border-box;
+  		//border:solid red 1px;
+  		display:inline-block;
+  		position:relative;
+  		width:1200px;
+  		height:900px;
+  		margin-left:auto;
+  		margin-right:auto;
+      padding:5px;
+  	}
+
+  	#cypher {
+  		width:1100px;
+  	}
+
+  	fieldset {
+      box-sizing:border-box;
+      padding-top:0px;
+  		display:inline-block;
+  	}
+
+    fieldset > label, fieldset > input
+    {
+      box-sizing:border-box;
+      margin-top:10px;
+      margin-left:10px;
+    }
+
+    #temporalStart {
+      margin-left:20px;
+      margin-right:5px;
+    }
+
+    #temporalEnd {
+      margin-left:5px;
+    }
+
+    #filter {
+      float:right;
+      margin-top:15px;
+    }
+  	
+    #temporalFilter {
+    }
+    #temporalMonths {
+      width:70px;
+    }
+    .start {
+      clear:both;
+      float:left;
+    }
+    </style>
+  </head>
+
+  <body>
+    <div class="outer">
+    	<div class="inner">
+    		<fieldset>
+          <legend>Controls</legend>
+
+          <label>Templates</label>
+          <select id="templates">
+          </select>
+          <br/>
+    			<label>Cypher</label><input id="cypher" value='MATCH (r:Repository)-[a]->(c:Changeset)-[b]-(d:Developer) WHERE c.date &gt; "START_DATE" and c.date &lt; "END_DATE" RETURN r,a,c,b,d'/>
+          <br/>
+    			<label class"start">Node Name</label><input id="sourceFilter"></input>
+    			<label>Temporial Point of Interest</label><input id="temporalFilter" type="range" step="1" value="60" min="0" max="100"></input>
+          <label>Number of Months</label><input id="temporalMonths" type="number" value="12"></input>
+          <label id="temporalStart">START</label>to<label id="temporalEnd">END</label>
+          <button id="filter">Filter</button>
+    		</fieldset>
+    		<div id="mynetwork"></div>
+    	</div>
+    </div>
+  </body>
+</html>
