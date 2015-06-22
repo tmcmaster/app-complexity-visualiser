@@ -1,0 +1,12 @@
+div[data-tm-type="neo4j-browser"] {
+    box-sizing:border-box;
+	//border:solid red 1px;
+	display:inline-block;
+	position:relative;
+	width:1200px;
+	height:900px;
+	margin-left:auto;
+	margin-right:auto;
+	padding:5px;
+
+

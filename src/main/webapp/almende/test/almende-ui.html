@@ -2,10 +2,11 @@
   <head>
     <title>Network | Basic usage</title>
 
-    <script type="text/javascript" src="vis.js"></script>
-    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript" src="../../almende/vis.js"></script>
+    <script type="text/javascript" src="../../jquery/jquery.js"></script>
+    <script type="text/javascript" src="../../jquery/jquery-ui.js"></script>
     
-    <link href="vis.css" rel="stylesheet" type="text/css" />
+    <link href="../../almende/vis.css" rel="stylesheet" type="text/css" />
 
     <script type="text/javascript">
     		//var cypher = 'MATCH (n) where id(n) = 37 return n';
@@ -55,38 +56,74 @@
     			{
     				var subList = neoData.data[i];
     				var item  = subList[j];
-    				if (item.self.indexOf('data/node') !== -1)
-    				{
-    					var match = /.*\/node\/([0-9]*)/.exec(item.self);
-              var node = {
-    						id:match[1],
-    						label: item.data.name.substring(0,10),
-                group: item.metadata.labels[0]
-    					};
-    					if (nodeMap[node.id] === undefined)
-    					{
-    						nodeMap[node.id] = node;
-    						data.nodes.push(node);
-    					}
-    				}
-    				else if (item.self.indexOf('data/relationship') !== -1)
-    				{
-    					var match = /.*\/relationship\/([0-9]*)/.exec(item.self);
-    					var relationshipId = match[1];
-    					var fromId = /.*\/node\/([0-9]*)/.exec(item.start)[1];
-    					var toId = /.*\/node\/([0-9]*)/.exec(item.end)[1];
-    					var relationshipId = match[1];
-    					var relationship = {
-    						id: relationshipId,
-    						from: fromId,
-    						to: toId
-    					};
-    					if (relationshipMap[relationship.id] === undefined)
-    					{
-    						relationshipMap[relationship.id] = relationship;
-    						data.edges.push(relationship);
-    					}
-    				}
+            if (item.self)
+            {
+      				if (item.self.indexOf('data/node') !== -1)
+      				{
+      					var match = /.*\/node\/([0-9]*)/.exec(item.self);
+                var node = {
+      						id:match[1],
+      						label: item.data.name.substring(0,10),
+                  group: item.metadata.labels[0]
+      					};
+      					if (nodeMap[node.id] === undefined)
+      					{
+      						nodeMap[node.id] = node;
+      						data.nodes.push(node);
+      					}
+      				}
+      				else if (item.self.indexOf('data/relationship') !== -1)
+      				{
+      					var match = /.*\/relationship\/([0-9]*)/.exec(item.self);
+      					var relationshipId = match[1];
+      					var fromId = /.*\/node\/([0-9]*)/.exec(item.start)[1];
+      					var toId = /.*\/node\/([0-9]*)/.exec(item.end)[1];
+      					var relationshipId = match[1];
+      					var relationship = {
+      						id: relationshipId,
+      						from: fromId,
+      						to: toId
+      					};
+      					if (relationshipMap[relationship.id] === undefined)
+      					{
+      						relationshipMap[relationship.id] = relationship;
+      						data.edges.push(relationship);
+      					}
+      				}
+            }
+            else
+            {
+                var item = subList;
+                var node1 = {
+                  id:item[0],
+                  label: item[1],
+                  group: item[1]
+                };
+
+                if (nodeMap[node1.id] === undefined)
+                {
+                  nodeMap[node1.id] = node1;
+                  data.nodes.push(node1);
+                }
+                var node2 = {
+                  id:item[2],
+                  label: item[3],
+                  group: item[1]
+                };
+
+                if (nodeMap[node2.id] === undefined)
+                {
+                  nodeMap[node2.id] = node2;
+                  data.nodes.push(node2);
+                }
+
+                var relationship = {
+                  id: (i*1000 + j),
+                  from: node1.id,
+                  to: node2.id
+                };
+                data.edges.push(relationship);
+            }
     			}
     		}
 
@@ -222,12 +259,13 @@
           cypher: 'MATCH (r:Repository)-[rc]-(c:Changeset)-[cf]-(f:File) MATCH (c)-[cd]-(d:Developer) return f.package as Package, d.name as Developer,sum(TOINT(cf.changes)) as Changes order by Package,Changes DESC'
         }
       ];
-      var templates = $('#templates');
-      $(templates).append('<option value="sdsfsd">sadfasdf</option>');
       
-      $(cyphers).each(function(cypher) {
-        console.log(cyphers[cypher].title);
-        $(templates).append('<option value="' + cyphers[cypher].cypher + '">' + cyphers[cypher].title + '</option>');
+      $(document).ready(function() {
+        var templates = $('#templates');
+          $(cyphers).each(function(cypher) {
+          console.log(cyphers[cypher].title);
+          $(templates).append($('<option value="' + cyphers[cypher].cypher + '">' + cyphers[cypher].title + '</option>'));
+        });
       });
     </script>
 
