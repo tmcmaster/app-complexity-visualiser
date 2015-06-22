@@ -1,0 +1,36 @@
+fieldset[data-tm-type="neo4j-controls"] {
+	box-sizing:border-box;
+	padding-top:0px;
+	display:inline-block;}
+
+	fieldset[data-tm-type="neo4j-controls"] > label,
+	fieldset[data-tm-type="neo4j-controls"] > input {
+		box-sizing:border-box;
+		margin-top:10px;
+		margin-left:10px;}
+
+	fieldset[data-tm-type="neo4j-controls"] > select[data-tm-type="neo4j-controls-cyphers"] {
+		width:500px;}
+
+	fieldset[data-tm-type="neo4j-controls"] > input[data-tm-type="neo4j-controls-cypher"] {
+		width:1000px;}
+
+	fieldset[data-tm-type="neo4j-controls"] > input[data-tm-type="neo4j-controls-filter"] {
+		margin-top:15px;}
+
+	fieldset[data-tm-type="neo4j-controls"] > input[data-tm-type="neo4j-controls-range"] {}
+
+	fieldset[data-tm-type="neo4j-controls"] > input[data-tm-type="neo4j-controls-months"] {
+		width:70px;}
+
+	fieldset[data-tm-type="neo4j-controls"] > label[data-tm-type="neo4j-controls-start"] {
+		margin-left:20px;
+		margin-right:5px;}
+	
+	fieldset[data-tm-type="neo4j-controls"] > label[data-tm-type="neo4j-controls-end"] {
+		margin-left:5px;}
+	
+	fieldset[data-tm-type="neo4j-controls"] > button[data-tm-type="neo4j-controls-create"] {
+		margin-top:15px;
+		float:right;}
+

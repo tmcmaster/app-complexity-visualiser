@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+	<head>
+ 		<title>Almende JQuery Widget Test</title>
+
+		<!-- External Imports -->		
+		
+		<script type="text/javascript" src="../../almende/vis.js" ></script>
+		<script type="text/javascript" src="../../jquery/jquery.js" ></script>
+		<script type="text/javascript" src="../../jquery/jquery-ui.js" ></script>
+		<script type="text/javascript" src="../../datatables/js/jquery.dataTables.js" ></script>
+		
+		<link type="text/css" rel="stylesheet" href="../../almende/vis.css" rel="stylesheet" />
+		<link type="text/css" rel="stylesheet" href="../../datatables/css/jquery.dataTables.css" />
+
+		<!-- Internal Imports -->		
+		
+		<script type="text/javascript" src="../../tabs/tabs.js" ></script>
+		<script type="text/javascript" src="../../tabs/jquery-tabs.js" ></script>
+		<script type="text/javascript" src="../../almende/jquery-almende.js" ></script>
+		<script type="text/javascript" src="../../datatables/jquery-table.js" ></script>
+		<script type="text/javascript" src="../../neo4j/jquery-neo4j-controls.js" ></script>
+		<script type="text/javascript" src="../../neo4j/jquery-neo4j-service.js" ></script>
+		<script type="text/javascript" src="../../neo4j/jquery-neo4j-browser.js" ></script>
+
+		<link type="text/css" rel="stylesheet" href="../../tabs/tabs.css" />
+		<link type="text/css" rel="stylesheet" href="../../almende/jquery-almende.css" />
+		<link type="text/css" rel="stylesheet" href="../../datatables/jquery-table.css" />
+		<link type="text/css" rel="stylesheet" href="../../neo4j/jquery-neo4j-controls.css" />
+		<link type="text/css" rel="stylesheet" href="../../neo4j/jquery-neo4j-service.css" />
+		<link type="text/css" rel="stylesheet" href="../../neo4j/jquery-neo4j-browser.css" />
+
+		<!-- Local Exports -->
+
+		<script type="text/javascript" src="test-jquery-almende.js" ></script>
+		
+		<link type="text/css" rel="stylesheet" href="test-jquery-almende.css" />
+
+	</head>
+	<body>
+
+		<ul id="tabs">
+		 	<h1>Neo4j Browsing Tool</h1>
+		    <li><a href="#" name="tabQuery">Query</a></li>
+		    <li><a href="#" name="tabGraph">Graph</a></li>
+		    <li><a href="#" name="tabTable">Table</a></li>
+		</ul>
+
+		<div id="content" data-tm-type="neo4j-browser"> 
+		    <div id="tabQuery">
+				<!-- Neo4j Browser Controls -->
+				<fieldset data-tm-type="neo4j-controls">
+					<legend>Controls</legend>
+
+					<!-- List of neo4j Cypher templates -->
+					<label>Templates</label>
+					<select data-tm-type="neo4j-controls-cyphers">
+					</select>
+					
+					<!-- Currently selected Neo4j Cypher -->
+					<br/>
+					<label>Cypher</label>
+					<input data-tm-type="neo4j-controls-cypher" value=""/>
+					
+					<!-- Node Filter -->
+					<br/>
+					<label>Node Filter</label>
+					<input data-tm-type="neo4j-controls-filter"></input>
+
+					<!-- Point of interest -->
+					<label>Start Point</label>
+					<input data-tm-type="neo4j-controls-range" type="range" step="1" value="80" min="0" max="100"/>
+					
+					<!-- Number of month in the date range -->
+					<label>Months</label>
+					<input data-tm-type="neo4j-controls-months" type="number" value="12"></input>
+					
+					<!-- Selected start date and end date -->
+					<label data-tm-type="neo4j-controls-start">START</label>
+					<label>to</label>
+					<label data-tm-type="neo4j-controls-end">END</label>
+					
+					<!-- Button to create the graph with Almende -->
+					<button data-tm-type="neo4j-controls-create">Create</button>
+				</fieldset>
+				<fieldset data-tm-type="neo4j-service">
+					<legend>Neo4j Service</legend>
+
+					<label>Hostname</label>
+					<input data-tm-type="data-tm-neo-host" value="localhost">
+					<label>Port</label>
+					<input data-tm-type="data-tm-neo-port" value="7474">
+				</fieldset>
+		    </div>
+		    <div id="tabGraph">
+		 		<div data-tm-type="almende" name="Almende"></div>
+		    </div>
+		    <div id="tabTable">
+		    	<div data-tm-type="datatable"></div>
+		    </div>
+		</div>
+	</body>
+</html>
