@@ -82,9 +82,47 @@
 	var emptyTitles2 = [{ "": "" }];
 	var emptyData2 = [];
 
-	// $(document).ready(function() {
-	// 	$('div[data-tm-type="datatable"]').table();
-	// } );
+	function convertData(neoData)
+	{
+		console.log('About to convert data.');
+
+		var columns = [{ "title": "AAA" }];
+		var dataSet = [['1']];
+
+		if (neoData !== undefined && neoData.data !== undefined && neoData.columns !== null)
+		{
+			if (neoData.data.length > 0 && neoData.data[0].length > 0)
+			{
+				var item = neoData.data[0][0];
+				if (item.self !== undefined)
+				{
+					console.log('Data was not tabular data.');
+				}
+				else
+				{
+					columns = [];
+					for (var c in neoData.columns)
+					{
+						columns.push({title: neoData.columns[c]});
+					}
+					dataSet = neoData.data;
+				}
+			}
+			else
+			{
+				console.log('There were no results.');
+			}
+		}
+		else
+		{
+			console.log('Data was not supplied.');
+		}
+		
+		return {
+			columns : columns,
+			dataSet : dataSet
+		}
+	}
 
  	/**
 	 * JQuery Widget to manage expanding templates with data returned from REST calls.
@@ -106,13 +144,22 @@
 		 	console.log('About to create DataTable');
 	    	var self = this;
 
-	    	self.updateData(emptyTitles2, emptyData2);
+	    	self._updateData(emptyTitles2, emptyData2);
 
 		    setTimeout(function() {
-		    	self.updateData(columns, dataSet);
+		    	self._updateData(columns, dataSet);
 		    }, 3000);
 		},
-		updateData : function(columns, dataSet)
+		updateData : function(newData) {
+			console.log('Table has been given some more data to render.');
+
+			var data = convertData(newData);
+			if (data !== undefined)
+			{
+				this._updateData(data.columns, data.dataSet);
+			}
+		},
+		_updateData : function(columns, dataSet)
 	    {
 	    	if (columns !== undefined && dataSet !== undefined)
 	    	{

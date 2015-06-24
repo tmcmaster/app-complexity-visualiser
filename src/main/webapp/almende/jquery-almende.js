@@ -20,7 +20,7 @@
 		};
 	}
 
-	function convertData(neoData)
+	function convertData(neoData, fields)
 	{
         console.log('About to convert data.');
 		var data = {
@@ -31,56 +31,62 @@
 		var nodeMap = {};
 		var relationshipMap = {};
 
-		for (var i in neoData.data)
+		if (neoData !== undefined && neoData.data !== undefined && neoData.data.length > 0 && neoData.data[0].length > 0)
 		{
-			if (i > 10) break;
-			
-			for (var j in neoData.data[i])
+			if (neoData.data[0][0].self !== undefined)
 			{
-				var subList = neoData.data[i];
-				var item  = subList[j];
-		        if (item.self)
-		        {
-					if (item.self.indexOf('data/node') !== -1)
+				// parse node and relationship data
+				for (var i in neoData.data)
+				{
+					for (var j in neoData.data[i])
 					{
-						var match = /.*\/node\/([0-9]*)/.exec(item.self);
-						var node = {
-							id:match[1],
-							label: item.data.name.substring(0,10),
-							group: item.metadata.labels[0]
-						};
-						if (nodeMap[node.id] === undefined)
+						var item  = neoData.data[i][j];
+						if (item.self.indexOf('data/node') !== -1)
 						{
-							nodeMap[node.id] = node;
-							data.nodes.push(node);
+							var match = /.*\/node\/([0-9]*)/.exec(item.self);
+							var node = {
+								id:match[1],
+								label: item.data.name.substring(0,10),
+								group: item.metadata.labels[0]
+							};
+							if (nodeMap[node.id] === undefined)
+							{
+								nodeMap[node.id] = node;
+								data.nodes.push(node);
+							}
+						}
+						else if (item.self.indexOf('data/relationship') !== -1)
+						{
+							var match = /.*\/relationship\/([0-9]*)/.exec(item.self);
+							var relationshipId = match[1];
+							var fromId = /.*\/node\/([0-9]*)/.exec(item.start)[1];
+							var toId = /.*\/node\/([0-9]*)/.exec(item.end)[1];
+							var relationshipId = match[1];
+							var relationship = {
+								id: relationshipId,
+								from: fromId,
+								to: toId
+							};
+							if (relationshipMap[relationship.id] === undefined)
+							{
+								relationshipMap[relationship.id] = relationship;
+								data.edges.push(relationship);
+							}
 						}
 					}
-					else if (item.self.indexOf('data/relationship') !== -1)
-					{
-						var match = /.*\/relationship\/([0-9]*)/.exec(item.self);
-						var relationshipId = match[1];
-						var fromId = /.*\/node\/([0-9]*)/.exec(item.start)[1];
-						var toId = /.*\/node\/([0-9]*)/.exec(item.end)[1];
-						var relationshipId = match[1];
-						var relationship = {
-							id: relationshipId,
-							from: fromId,
-							to: toId
-						};
-						if (relationshipMap[relationship.id] === undefined)
-						{
-							relationshipMap[relationship.id] = relationship;
-							data.edges.push(relationship);
-						}
-					}
-		        }
-		        else
-		        {
-					var item = subList;
+				}
+			}
+			else if (fields.idNode1 >  -1 && fields.idNode2 > -1)
+			{
+				// parse tabular data
+				for (var i in neoData.data)
+				{
+					var item = neoData.data[i];
+
 					var node1 = {
-						id:item[0],
-						label: item[1],
-						group: item[1]
+						id: item[fields.idNode1],
+						label: "" + item[(fields.nameNode1 < 0 ? fields.idNode1 : fields.nameNode1)],
+						group: "" + (fields.groupNode1 < 0 ? "group" : item[fields.groupNode1])
 					};
 
 					if (nodeMap[node1.id] === undefined)
@@ -88,10 +94,11 @@
 						nodeMap[node1.id] = node1;
 						data.nodes.push(node1);
 					}
+
 					var node2 = {
-						id:item[2],
-						label: item[3],
-						group: item[1]
+						id:item[fields.idNode2],
+						label: "" + item[(fields.nameNode2 < 0 ? fields.idNode2 : fields.nameNode2)],
+						group: "" + (fields.groupNode2 < 0 ? "group" : item[fields.groupNode2])
 					};
 
 					if (nodeMap[node2.id] === undefined)
@@ -101,14 +108,25 @@
 					}
 
 					var relationship = {
-						id: (i*1000 + j),
+						id: (i*1000),
 						from: node1.id,
-						to: node2.id
+						to: node2.id,
+						value: (fields.valueRelationship < 0 ? 1 : item[fields.valueRelationship]),
+						label: "" + (fields.labelRelationship < 0 ? "" : item[fields.labelRelationship])
 					};
 					data.edges.push(relationship);
-		        }
+				}
+			}
+			else
+			{
+				console.log('Invalid data. Not able to graph.');
 			}
 		}
+		else
+		{
+			console.log('Data was not supplied.');
+		}
+
 	
 		console.log('Data has been converted.');
 
@@ -151,12 +169,12 @@
 
 	        //self._recreateNetwork();
 	    },
-	    updateData : function(newData)
+	    updateData : function(newData, dataMap)
 	    {
 	    	if (newData !== undefined)
 	    	{
 	    		this.log('Upddating the graph.');
-		    	var data = convertData(newData);
+		    	var data = convertData(newData, dataMap);
 		    	this._recreateNetwork(data);
 		    }
 

@@ -41,7 +41,15 @@
 					self.selectTab(name);        
 				}
 			});				
-			self.selectTab('tabTable');
+			if (this.options !== undefined && this.options.startTab !== undefined)
+			{
+				self.selectTab(this.options.startTab);
+			}
+			else
+			{
+				// TODO: this needs to get the name of the fisrt tab
+				self.selectTab('tabQuery');
+			}
 		},
 
 		selectTab : function(name) {

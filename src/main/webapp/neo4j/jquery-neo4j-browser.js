@@ -48,6 +48,8 @@
 	        	newDataAvailable : this._newDataAvailable
 	        });
 
+			$('div[data-tm-type="neo4j-browser"]').tabpane({startTab:'tabQuery'});
+
 	        // Construct the table component to view the data results
 			$('div[data-tm-type="datatable"]').table();
 	
@@ -57,19 +59,20 @@
 	        self.log('Neo4j Browser has been created.');
 		},
 
-		_newDataAvailable : function(data) {
+		_newDataAvailable : function(data, dataMap) {
+			var self = this;
 			console.log('Service has given new data to the browser.');
 			console.log('Browser is giving the data to the table.');
 			$('div[data-tm-type="datatable"]').table('updateData', data);
 			console.log('Browser is giving the data to the graph.');
-			$('body').tabpane('selectTab', 'tabGraph');
-			$('div[data-tm-type="almende"]').almende('updateData', data);
+			$('div[data-tm-type="neo4j-browser"]').tabpane('selectTab', 'tabGraph');
+			$('div[data-tm-type="almende"]').almende('updateData', data, dataMap);
 		},
 
-		_cypherChanged : function(cypher) {
+		_cypherChanged : function(cypher, dataMap) {
     		console.log('Controls have given a new cypher to the browser: ' + cypher);
     		console.log('Browser is giving the new cypher to the service: ' + cypher);
-    		$('fieldset[data-tm-type="neo4j-service"]').neo4j_service('submitCypher', cypher);
+    		$('fieldset[data-tm-type="neo4j-service"]').neo4j_service('submitCypher', cypher, dataMap);
     	},
 	});
 
