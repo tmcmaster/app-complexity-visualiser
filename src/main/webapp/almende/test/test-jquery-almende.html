@@ -38,66 +38,114 @@
 
 	</head>
 	<body>
+		<div data-tm-type="neo4j-browser">
+			<ul id="tabs">
+			 	<h1>Neo4j Browsing Tool</h1>
+			    <li><a href="#" name="tabQuery">Query</a></li>
+			    <li><a href="#" name="tabGraph">Graph</a></li>
+			    <li><a href="#" name="tabTable">Table</a></li>
+			</ul>
+			<div id="content">
+			    <div id="tabQuery">
 
-		<ul id="tabs">
-		 	<h1>Neo4j Browsing Tool</h1>
-		    <li><a href="#" name="tabQuery">Query</a></li>
-		    <li><a href="#" name="tabGraph">Graph</a></li>
-		    <li><a href="#" name="tabTable">Table</a></li>
-		</ul>
+					<!-- Neo4j Browser Controls -->
+					<fieldset data-tm-type="neo4j-controls">
+						<legend>Controls</legend>
 
-		<div id="content" data-tm-type="neo4j-browser"> 
-		    <div id="tabQuery">
-				<!-- Neo4j Browser Controls -->
-				<fieldset data-tm-type="neo4j-controls">
-					<legend>Controls</legend>
+						<!-- List of neo4j Cypher templates -->
+						<label>Templates</label>
+						<select data-tm-type="neo4j-controls-cyphers">
+						</select>
+						
+						<!-- Currently selected Neo4j Cypher -->
+						<br/>
+						<label>Cypher</label>
+						<input data-tm-type="neo4j-controls-cypher" value=""/>
+						<!-- <textarea data-tm-type="neo4j-controls-cypher" value=""></textarea> -->
+						
+						<!-- Node Filter -->
+						<br/>
+						<label>Node Filter</label>
+						<input data-tm-type="neo4j-controls-filter"></input>
 
-					<!-- List of neo4j Cypher templates -->
-					<label>Templates</label>
-					<select data-tm-type="neo4j-controls-cyphers">
-					</select>
+						<!-- Point of interest -->
+						<label>Start Point</label>
+						<input data-tm-type="neo4j-controls-range" type="range" step="1" value="80" min="0" max="100"/>
+						
+						<!-- Number of month in the date range -->
+						<label>Months</label>
+						<input data-tm-type="neo4j-controls-months" type="number" value="1"></input>
+						
+						<!-- Selected start date and end date -->
+						<label data-tm-type="neo4j-controls-start">START</label>
+						<label>to</label>
+						<label data-tm-type="neo4j-controls-end">END</label>
+						
+						<!-- Button to create the graph with Almende -->
+						<button data-tm-type="neo4j-controls-create">Create</button>
+					</fieldset><br/>
 					
-					<!-- Currently selected Neo4j Cypher -->
-					<br/>
-					<label>Cypher</label>
-					<input data-tm-type="neo4j-controls-cypher" value=""/>
-					
-					<!-- Node Filter -->
-					<br/>
-					<label>Node Filter</label>
-					<input data-tm-type="neo4j-controls-filter"></input>
+					<!-- Map result data fileds to node and relationship attributes -->
+					<fieldset data-tm-type="neo4j-datamap">
+						<legend>Data Mapping</legend>
 
-					<!-- Point of interest -->
-					<label>Start Point</label>
-					<input data-tm-type="neo4j-controls-range" type="range" step="1" value="80" min="0" max="100"/>
-					
-					<!-- Number of month in the date range -->
-					<label>Months</label>
-					<input data-tm-type="neo4j-controls-months" type="number" value="12"></input>
-					
-					<!-- Selected start date and end date -->
-					<label data-tm-type="neo4j-controls-start">START</label>
-					<label>to</label>
-					<label data-tm-type="neo4j-controls-end">END</label>
-					
-					<!-- Button to create the graph with Almende -->
-					<button data-tm-type="neo4j-controls-create">Create</button>
-				</fieldset>
-				<fieldset data-tm-type="neo4j-service">
-					<legend>Neo4j Service</legend>
+						<!-- The From Node -->
+						<fieldset>
+							<legend>From Mode</legend>
 
-					<label>Hostname</label>
-					<input data-tm-type="data-tm-neo-host" value="localhost">
-					<label>Port</label>
-					<input data-tm-type="data-tm-neo-port" value="7474">
-				</fieldset>
-		    </div>
-		    <div id="tabGraph">
-		 		<div data-tm-type="almende" name="Almende"></div>
-		    </div>
-		    <div id="tabTable">
-		    	<div data-tm-type="datatable"></div>
-		    </div>
+							<label>ID</label>
+							<select data-tm-type="neo4j-datamap-id-node1"></select>
+							<label>Name</label>
+							<select data-tm-type="neo4j-datamap-name-node1"></select>
+							<label>Group</label>
+							<select data-tm-type="neo4j-datamap-group-node1"></select>
+							<label>Value</label>
+							<select data-tm-type="neo4j-datamap-value-node1"></select>
+						</fieldset><br/>
+
+						<!-- The To Node -->
+						<fieldset>
+							<legend>To Mode</legend>
+
+							<label>ID</label>
+							<select data-tm-type="neo4j-datamap-id-node2"></select>
+							<label>Name</label>
+							<select data-tm-type="neo4j-datamap-name-node2"></select>
+							<label>Group</label>
+							<select data-tm-type="neo4j-datamap-group-node2"></select>
+							<label>Value</label>
+							<select data-tm-type="neo4j-datamap-value-node2"></select>
+						</fieldset><br/>
+					
+						<!-- Relationship -->
+						<fieldset>
+							<legend>Relationship</legend>
+
+							<label>ID</label>
+							<select data-tm-type="neo4j-datamap-label-relationship"></select>
+							<label>Value</label>
+							<select data-tm-type="neo4j-datamap-value-relationship"></select>
+						</fieldset>
+
+					</fieldset><br/>
+
+					<!--  -->
+					<fieldset data-tm-type="neo4j-service">
+						<legend>Neo4j Service</legend>
+
+						<label>Hostname</label>
+						<input data-tm-type="data-tm-neo-host" value="localhost">
+						<label>Port</label>
+						<input data-tm-type="data-tm-neo-port" value="7474">
+					</fieldset>
+			    </div>
+			    <div id="tabGraph">
+			 		<div data-tm-type="almende" name="Almende"></div>
+			    </div>
+			    <div id="tabTable">
+			    	<div data-tm-type="datatable"></div>
+			    </div>
+			</div>
 		</div>
 	</body>
 </html>

@@ -150,7 +150,7 @@ if ($dryRun)
 
 # create a logger to be used by this script, and any include libraries (part of this project only)
 
-my @defaultOutputDirectories = ("/cygdrive/c/Users/Tim/Workspace/Neo4j/scratch", "/cygdrive/d/work/neo4j/scratch");
+my @defaultOutputDirectories = ("/cygdrive/c/Users/Tim/Workspace/Neo4j/import/scratch", "/cygdrive/d/work/neo4j/import/scratch");
 
 # project arguments
 my $projectArguments = generateProjectArguments($type, $name, $projectOwner, $path, $projectList, $projectAll);

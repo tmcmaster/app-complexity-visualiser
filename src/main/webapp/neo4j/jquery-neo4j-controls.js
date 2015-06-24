@@ -90,32 +90,149 @@
 				}
 			}
 
+			// initialise the cypher
 	        var cypher = $('select[data-tm-type="neo4j-controls-cyphers"]').val();
 	        $('input[data-tm-type="neo4j-controls-cypher"]').val(cypher);
+			self._updateDataMapSelects();
+
+			// listen for changes in the cypher list, and update the cypher field
 	        $('select[data-tm-type="neo4j-controls-cyphers"]').change(function() {
-	        	console.log("Cypher changed: " + $(this).val());
+	        	console.log("Cypher selection changed: " + $(this).val());
 	        	$('input[data-tm-type="neo4j-controls-cypher"]').val($(this).val());
+				self._updateDataMapSelects();
 	        });
 
+	        // listen for changes to the cypher, and update the DataMap select fields.
+	        $('input[data-tm-type="neo4j-controls-cypher"]').change(function() {
+	        	console.log("Cypher changed: " + $(this).val());
+				self._updateDataMapSelects();
+	        });
+
+	        // listen for when the requested number of months changes, and update the end date.
 	        $('input[data-tm-type="neo4j-controls-months"]').change(function() {
 		        updateTemporalRange();
 	        });
+
+	        // listen for when the start point for the data range changes
 	       	$('input[data-tm-type="neo4j-controls-range"]').change(function() {
 		        updateTemporalRange();
 	        });
+
+	       	// listen for the request to build the graph and table views
 	       	$('button[data-tm-type="neo4j-controls-create"]').click(function() {
-	       		var cypher = $('input[data-tm-type="neo4j-controls-cypher"]').val();
-	       		var startDate = $('label[data-tm-type="neo4j-controls-start"]').text();
-	       		var endDate = $('label[data-tm-type="neo4j-controls-end"]').text();
 
-	       		cypher = cypher.replace('START_DATE', startDate);
-          		cypher = cypher.replace('END_DATE', endDate);
+          		var cypher = self._getCypher();
+          		var dataMap = self._getDataMap();
 
-		        self.options.cypherChanged(cypher);
+		        self.options.cypherChanged(cypher, dataMap);
 		        //createGraph();
 	        });
 
+	       	// initialise the start and end dates
 	        updateTemporalRange();
+		},
+
+		_updateDataMapSelects : function() {
+			console.log('Cypher has changed, so the DataMap select elements need to be rebuilt.');
+
+			var cypher = $('input[data-tm-type="neo4j-controls-cypher"]').val();
+			var indexReturn = cypher.indexOf(' return ');
+			var optionsString = '<option value="-1">Default</option>';
+			if (indexReturn > -1)
+			{
+				var start = (indexReturn + 8);
+				var returnFields = cypher.substring(start);
+				var indexOrderBy = returnFields.indexOf(' ORDER BY ');
+				if (indexOrderBy < 0)
+				{
+					indexOrderBy = returnFields.indexOf(' order by ');
+				}
+				if (indexOrderBy > -1)
+				{
+					returnFields = returnFields.substring(0,indexOrderBy);
+				}
+				
+				var indexLimit = returnFields.indexOf(' LIMIT ');
+				if (indexLimit < 0)
+				{
+					indexLimit = returnFields.indexOf(' limit ');
+				}
+				if (indexLimit > -1)
+				{
+					returnFields = returnFields.substring(0,indexLimit);
+				}
+
+				var fieldStrings = returnFields.split(",");
+				for (var f in fieldStrings)
+				{
+					var fieldString = fieldStrings[f];
+					fieldString = fieldString.trim();
+					var indexAs = fieldString.indexOf(' as ');
+					if (indexAs > -1)
+					{
+						var start = (indexAs + 4)
+						fieldString = fieldString.substring(start);
+					}
+					optionsString += '<option value="' + f + '">' + fieldString + '</option>';
+					console.log("  - " + fieldString);
+				}
+
+				console.log('  - ' + optionsString);
+
+				$('fieldset[data-tm-type="neo4j-datamap"]').find('select').each(function() {
+					$(this).empty();
+					$(this).html(optionsString);
+				});
+			}
+		},
+
+		_getCypher : function() {
+			var cypher = $('input[data-tm-type="neo4j-controls-cypher"]').val();
+			var startDate = $('label[data-tm-type="neo4j-controls-start"]').text();
+			var endDate = $('label[data-tm-type="neo4j-controls-end"]').text();
+
+			cypher = cypher.replace('START_DATE', startDate);
+			cypher = cypher.replace('END_DATE', endDate);
+
+			return cypher;
+		},
+
+		_getDataMap : function() {
+
+			// node 1 valuea
+			var indexIdNode1 = $('select[data-tm-type="neo4j-datamap-id-node1"]').val();
+			var indexNameNode1 = $('select[data-tm-type="neo4j-datamap-name-node1"]').val();
+			var indexGroupNode1 = $('select[data-tm-type="neo4j-datamap-group-node1"]').val();
+			var indexValueNode1 = $('select[data-tm-type="neo4j-datamap-value-node1"]').val();
+
+			// node 2 vaules
+			var indexIdNode2 = $('select[data-tm-type="neo4j-datamap-id-node2"]').val();
+			var indexNameNode2 = $('select[data-tm-type="neo4j-datamap-name-node2"]').val();
+			var indexGroupNode2 = $('select[data-tm-type="neo4j-datamap-group-node2"]').val();
+			var indexValueNode2 = $('select[data-tm-type="neo4j-datamap-value-node2"]').val();
+			
+			// relationship values
+			var indexLabelRelationship = $('select[data-tm-type="neo4j-datamap-label-relationship"]').val();
+			var indexValueRelationship = $('select[data-tm-type="neo4j-datamap-value-relationship"]').val();
+
+
+			var dataMap = {
+				// node 1 fields
+				'idNode1' : indexIdNode1,
+				'nameNode1' : indexNameNode1,
+				'groupNode1' : indexGroupNode1,
+
+				// node 2 fields
+				'idNode2' : indexIdNode2,
+				'nameNode2' : indexNameNode2,
+				'groupNode2' : indexGroupNode2,
+
+				// relationship
+				'valueRelationship' : indexValueRelationship,
+				'labelRelationship' : indexLabelRelationship
+			};
+
+			return dataMap;
 		}
 	});
 

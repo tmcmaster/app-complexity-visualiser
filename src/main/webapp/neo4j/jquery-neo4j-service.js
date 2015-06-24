@@ -50,7 +50,7 @@
 			}
 		},
 
-		submitCypher : function(cypher) {
+		submitCypher : function(cypher, dataMap) {
 			var self = this;
 			console.log('Posting cypher to Neo4j: ' + cypher);
 			$.ajax({
@@ -58,7 +58,7 @@
 				url:'http://localhost:7474/db/data/cypher',
 				data:{ query : cypher },
 				success: function(data) {
-					self.options.newDataAvailable(data);
+					self.options.newDataAvailable(data, dataMap);
 				}
 			 });
 
